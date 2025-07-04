@@ -46,6 +46,7 @@ if( SaddlePointLinearSolver_WITH_TESTS )
 
  # build test main exe
  add_executable(SaddlePointLinearSolver_test ${MY_TEST_SOURCES})
+ target_include_directories(SaddlePointLinearSolver_test PRIVATE ${PETSC_INCLUDES} )
  #target_link_libraries(SaddlePointLinearSolver_test SaddlePointLinearSolverLib )
  target_link_libraries(SaddlePointLinearSolver_test ${PETSC_LIBRARIES})
 
