@@ -2,3 +2,9 @@
 
 tests/data/metadata/*
 !tests/data/metadata/.gitkeep
+
+tests/results/*
+!tests/results/.gitkeep
+
+tests/tables/*
+!tests/tables/.gitkeep

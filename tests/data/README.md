@@ -37,11 +37,11 @@ python3 scripts/generate_metadata.py --data-path /path/to/data [--reset]
 
 #### Arguments:
 
-`--data-path` (required): Path to the root directory containing the following:
+- `--data-path` (required): Path to the root directory containing the following:
+  - A `matrices` folder with the mesh files.
+  - A `metadata` folder where metadata JSON files will be created.
+  - A `matrices_metadata.csv` file containing parameters for each matrix.
 
-- A `matrices` folder with the mesh files.
-- A `metadata` folder where metadata JSON files will be created.
-- A `matrices_metadata.csv` file containing parameters for each matrix.
 - `--reset` (optional): If set, the metadata directory will be deleted and recreated before generating new metadata files.
 
 #### Directory constraints:
