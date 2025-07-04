@@ -376,7 +376,30 @@ int main( int argc, char **args ){
 	PetscPrintf(PETSC_COMM_WORLD,"L2 total Error : ||X_anal - X_num|| = %e, (remember ||X_anal||=1)\n", error);
 
 	PetscCheck( error < 1.e-5, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high\n");
-	
+
+//##### Save the results in a JSON file
+	#include <unistd.h>
+	#include <fcntl.h>
+	#include <sys/stat.h>
+
+    printf("Creating output directory tmp...\n");
+    if (access("tmp", F_OK) == -1) {
+        if (mkdir("tmp", 0777) == -1) {
+            perror("Error creating directory tmp");
+            return 1;
+        }
+    }
+	FILE* outputFile = fopen("tmp/output.json", "w");
+	fprintf(outputFile, "{\n");
+	fprintf(outputFile, "  \"iter\": %d,\n", iter);
+	fprintf(outputFile, "  \"iter1\": %d,\n", iter1);
+	fprintf(outputFile, "  \"iter2\": %d,\n", iter2);
+	fprintf(outputFile, "  \"residual\": %.6e,\n", residu);
+	fprintf(outputFile, "  \"error\": %.6e\n", error);
+	fprintf(outputFile, "}\n");
+	fclose(outputFile);
+	printf("testOutput saved in tmp/output.json\n");
+
 //##### Cleaning of the code
 	MatDestroy(&M);
 	MatDestroy(&G_hat);

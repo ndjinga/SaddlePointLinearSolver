@@ -56,8 +56,8 @@ if( SaddlePointLinearSolver_WITH_TESTS )
  #target_link_libraries(SaddlePointLinearSolver_test SaddlePointLinearSolverLib )
  target_link_libraries(SaddlePointLinearSolver_test ${PETSC_LIBRARIES} ${MPI_HOME}/lib/libmpi.so)
 
- add_test(NAME SaddlePointLinearSolver_test  COMMAND "./SaddlePointLinearSolver_test -f0 Matrices/Assembly_PolyMAC_1_vp.petsc -nU 20344 -nP 9552")  
+ #add_test(NAME SaddlePointLinearSolver_test  COMMAND "./SaddlePointLinearSolver_test -f0 Matrices/Assembly_PolyMAC_1_vp.petsc -nU 20344 -nP 9552")
  install(TARGETS SaddlePointLinearSolver_test DESTINATION test)
 endif( SaddlePointLinearSolver_WITH_TESTS )
 
-
+add_subdirectory(tests)
