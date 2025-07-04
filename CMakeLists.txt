@@ -14,6 +14,7 @@ option (SaddlePointLinearSolver_WITH_MPI           "Generate a parallel version 
 set (PYTHON_ROOT_DIR      OFF CACHE STRING "Python library path" )
 set (PETSC_DIR            OFF CACHE STRING "PETSc library path" )
 set (PETSC_ARCH           OFF CACHE STRING "PETSc architecture" )
+set (MPI_HOME             OFF CACHE STRING "MPI library path" )
 
 set(MY_SOURCES
 #SaddlePointLinearSolver.c
@@ -33,6 +34,11 @@ if( SaddlePointLinearSolver_WITH_PYTHON )
   SET(PYTHON_EXECUTABLE ${Python_EXECUTABLE})
 endif( SaddlePointLinearSolver_WITH_PYTHON )
 
+if( SaddlePointLinearSolver_WITH_MPI )
+  message(STATUS "SaddlePointLinearSolverm requested with MPI library. Searching MPI library.")
+  set( MPI_HOME ${PETSC_DIR}/${PETSC_ARCH} )
+  find_package(MPI REQUIRED)
+endif( SaddlePointLinearSolver_WITH_MPI )
 
 if( SaddlePointLinearSolver_WITH_TESTS )
  enable_testing ()
