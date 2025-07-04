@@ -3,7 +3,7 @@ cmake_minimum_required(VERSION 3.12.0)
 project("SaddlePointLinearSolver")
 set(PROJECT_BRIEF "A preconditioner for linear systems with 2x2 block matrices")
 
-list (APPEND CMAKE_MODULE_PATH "${SaddlePointLinearSolver_SOURCE_DIR}/cmake_files")
+list (APPEND CMAKE_MODULE_PATH "${SaddlePointLinearSolver_SOURCE_DIR}/cmake")
 
 option (SaddlePointLinearSolver_WITH_PYTHON     "Build Python interface of freesteam" ON)
 option (SaddlePointLinearSolver_WITH_TESTS      "Build and run FREESTEAM example tests" ON)
@@ -37,12 +37,12 @@ endif( SaddlePointLinearSolver_WITH_PYTHON )
 if( SaddlePointLinearSolver_WITH_TESTS )
  enable_testing ()
 
-set(MY_TEST_SOURCES
-#SaddlePointLinearSolver.c
-SaddlePointLinearSolver_par.c
-#SaddlePointLinearSolver_par2.c
-#SaddlePointLinearSolver_Shat.c
-)
+ set(MY_TEST_SOURCES
+ #SaddlePointLinearSolver.c
+ tests/src/SaddlePointLinearSolver_par.c
+ #SaddlePointLinearSolver_par2.c
+ #SaddlePointLinearSolver_Shat.c
+ )
 
  # build test main exe
  add_executable(SaddlePointLinearSolver_test ${MY_TEST_SOURCES})
