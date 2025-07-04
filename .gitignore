@@ -1,0 +1,4 @@
+.idea/
+
+tests/data/metadata/*
+!tests/data/metadata/.gitkeep
