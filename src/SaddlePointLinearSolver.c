@@ -33,57 +33,31 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 #include <petscis.h>
 #include <petscksp.h>
 
-int main( int argc, char **args ){
-	PetscInitialize(&argc,&args, (char*)0,help);
-	PetscMPIInt    size;        /* size of communicator */
-	PetscMPIInt    rank;        /* processor rank */
-	MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
-	MPI_Comm_size(PETSC_COMM_WORLD,&size);
-	PetscErrorCode ierr=0;
-
-	PetscCheck( size == 1, PETSC_COMM_WORLD, ierr, "Incorrect number of procs nprocs = %d.\n !!! This is a sequential implementation !!! \n", size);
-
-//##### Load the matrix A in the file given in the command line
-	char file[1][PETSC_MAX_PATH_LEN], mat_type[256]; // File to load, matrix type
+//##### Load the matrix A in the file given in the argument
+void loadPETScMat(char* file, char* mat_type, Mat * A)
+{
 	PetscViewer viewer;
-	Mat A_input;
-	PetscBool flg;
 
-	PetscOptionsGetString(NULL,NULL,"-f0",file[0],PETSC_MAX_PATH_LEN,&flg);
-	PetscStrcpy(mat_type,MATAIJ);// Default value for PETSc Matrix type
-	PetscOptionsGetString(NULL,NULL,"-mat_type",mat_type,sizeof(mat_type),NULL);
-
-	PetscPrintf(PETSC_COMM_WORLD,"Loading Matrix type %s from file %s on %d processor(s)...\n", mat_type, file[0], size);	
+	PetscPrintf(PETSC_COMM_WORLD,"Loading Matrix type %s from file %s on %d processor(s)...\n", mat_type, file, size);	
 
 	PetscViewerCreate(PETSC_COMM_WORLD, &viewer);	
 	PetscViewerSetType(viewer,PETSCVIEWERBINARY);
 	PetscViewerFileSetMode(viewer,FILE_MODE_READ);
-	PetscViewerFileSetName(viewer,file[0]);
+	PetscViewerFileSetName(viewer,file);
 	
-	MatCreate(PETSC_COMM_WORLD, &A_input);
-	MatSetType(A_input,mat_type);
-	MatLoad(A_input,viewer);
+	MatCreate(PETSC_COMM_WORLD, &A);
+	MatSetType(A,mat_type);
+	MatLoad(A,viewer);
 	PetscViewerDestroy(&viewer);
 
 	PetscPrintf(PETSC_COMM_WORLD,"... matrix Loaded \n");	
 	
+	return A;
+}
 
 //####	Decompose the matrix A_input into 4 blocks M, G, D, C
-	Mat M, G, D, C;
-	PetscInt nrows, ncolumns;//Total number of rows and columns of A_input
-	PetscInt n_u, n_p, n;//Total number of velocity and pressure lines. n = n_u+ n_p
-	IS is_U,is_P;
-
-	PetscOptionsGetInt(NULL,NULL,"-nU",&n_u,NULL);
-	PetscOptionsGetInt(NULL,NULL,"-nP",&n_p,NULL);
-	n=n_u+n_p;
-	MatGetSize( A_input, &nrows, &ncolumns);
-
-	PetscCheck( nrows == ncolumns, PETSC_COMM_WORLD, ierr, "Matrix is not square !!!\n");
-	PetscCheck( n == ncolumns, PETSC_COMM_WORLD, ierr, "Inconsistent data : the matrix has %d lines but only %d velocity lines and %d pressure lines declared\n", ncolumns, n_u,n_p);
-	PetscPrintf(PETSC_COMM_WORLD,"The matrix has %d lines : %d velocity lines and %d pressure lines\n", n, n_u,n_p);
-	PetscPrintf(PETSC_COMM_SELF,"Matrix size : %d x %d, n_u = %d, n_p = %d \n", nrows, ncolumns, n_u, n_p);
-	
+Mat splitPETScMatrix2x2(Mat * A_input, PetscInt nU, PetscInt nP, Mat * M, Mat * G, Mat *D, Mat * C, IS * is_U, IS * is_P)
+{
 	PetscPrintf(PETSC_COMM_WORLD,"Extraction of the 4 blocks \n");
 	ISCreateStride(PETSC_COMM_WORLD, n_u, 0, 1, &is_U);
 	ISCreateStride(PETSC_COMM_WORLD, n_p, n_u, 1, &is_P);
@@ -93,9 +67,11 @@ int main( int argc, char **args ){
 	MatCreateSubMatrix(A_input,is_P, is_U,MAT_INITIAL_MATRIX,&D);
 	MatCreateSubMatrix(A_input,is_P, is_P,MAT_INITIAL_MATRIX,&C);
 	PetscPrintf(PETSC_COMM_WORLD,"... end of extraction\n");
+}
 
 //##### Definition of the right hand side to test the preconditioner
-	Vec b_input, b_input_p, b_input_u, b_hat, X_hat, X_anal;
+void buildRHSVectorAndBhat( PetscInt n_u, PetscInt n_p, Vec * b_input, Vec * b_input_p, Vec * b_input_u, Vec * b_hat, IS * is_U, IS * is_P)
+{
 	Vec X_array[2];
 	PetscScalar y[n_p];
 	PetscInt i_p[n_p];
@@ -106,8 +82,6 @@ int main( int argc, char **args ){
 	VecSetFromOptions(b_input);
 
 	VecDuplicate(b_input,&X_anal);//X_anal will store the exact solution
-	VecDuplicate(b_input,&X_hat);// X_hat will store the numerical solution of the transformed system
-	VecDuplicate(b_input,&b_hat);// b_hat will store the right hand side of the transformed system
 	
 	VecSet(X_anal,0.0);
 	for (int i = n_u;i<n;i++){
@@ -131,14 +105,62 @@ int main( int argc, char **args ){
 
 	//VecCreateNest( PETSC_COMM_WORLD, 2, NULL, X_array, &b_hat);//This may generate an error message : "Nest vector argument 3 not setup "
 	VecConcatenate(2, X_array, &b_hat, NULL);
-	
+}
+
 //##### Application of the transformation A -> A_hat
-	// Declaration
+transformSaddlePointMatrix1()
+{
 	Mat D_M_inv_G, Mat_array[4];
 	Mat A_hat, Pmat, C_hat, G_hat;
 	Mat diag_2M;//Will store 2*diagonal part of M (to approximate the Schur complement)
 	Vec v;
+
+}
+
+int main( int argc, char **args ){
+	PetscInitialize(&argc,&args, (char*)0,help);
+	PetscMPIInt    size;        /* size of communicator */
+	PetscMPIInt    rank;        /* processor rank */
+	MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+	MPI_Comm_size(PETSC_COMM_WORLD,&size);
+	PetscErrorCode ierr=0;
+	char file[1][PETSC_MAX_PATH_LEN], mat_type[256]; // File to load, matrix type
+	Mat A_input, Ahat, Pmat;
+	Mat M, G, D, C;
+	IS is_U,is_P;
+	Vec b_input, b_input_p, b_input_u, b_hat, X_hat, X_anal;
+
+	PetscCheck( size == 1, PETSC_COMM_WORLD, ierr, "Incorrect number of procs nprocs = %d.\n !!! This is a sequential implementation !!! \n", size);
+
+	PetscBool flg;
+	PetscOptionsGetString(NULL,NULL,"-f0",file[0],PETSC_MAX_PATH_LEN,&flg);
+	PetscStrcpy(mat_type,MATAIJ);// Default value for PETSc Matrix type
+	PetscOptionsGetString(NULL,NULL,"-mat_type",mat_type,sizeof(mat_type),NULL);
+
+	loadPETScMat( file[0], mat_type, &A_input);
 	
+	PetscInt nrows, ncolumns;//Total number of rows and columns of A_input
+	PetscInt n_u, n_p, n;//Total number of velocity and pressure lines. n = n_u+ n_p
+
+	PetscOptionsGetInt(NULL,NULL,"-nU",&n_u,NULL);
+	PetscOptionsGetInt(NULL,NULL,"-nP",&n_p,NULL);
+	n=n_u+n_p;
+	MatGetSize( A_input, &nrows, &ncolumns);
+
+	PetscCheck( nrows == ncolumns, PETSC_COMM_WORLD, ierr, "Matrix is not square !!!\n");
+	PetscCheck( n == ncolumns, PETSC_COMM_WORLD, ierr, "Inconsistent data : the matrix has %d lines but only %d velocity lines and %d pressure lines declared\n", ncolumns, n_u,n_p);
+	PetscPrintf(PETSC_COMM_WORLD,"The matrix has %d lines : %d velocity lines and %d pressure lines\n", n, n_u,n_p);
+	PetscPrintf(PETSC_COMM_SELF,"Matrix size : %d x %d, n_u = %d, n_p = %d \n", nrows, ncolumns, n_u, n_p);
+	
+	splitPETScMatrix2x2( &A_input, n_u, n_p, &M, &G, &D, &C, &is_U, &is_P);
+
+	buildRHSVector( n_u, n_p, &b_input, &b_input_p, &b_input_u);
+
+	VecDuplicate(b_input,&X_hat);// X_hat will store the numerical solution of the transformed system
+	VecDuplicate(b_input,&b_hat);// b_hat will store the right hand side of the transformed system
+
+	buildRHSVectorAndBhat( PetscInt n_u, PetscInt n_p, Vec * b_input, Vec * b_input_p, Vec * b_input_u, Vec * b_hat, IS * is_U, IS * is_P)
+
 	Mat_array[3]=M;//Bottom left block of A_hat
 
 	//Extraction of the diagonal of M
