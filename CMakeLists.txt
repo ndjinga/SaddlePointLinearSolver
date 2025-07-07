@@ -36,7 +36,9 @@ endif( SaddlePointLinearSolver_WITH_PYTHON )
 
 if( SaddlePointLinearSolver_WITH_MPI )
   message(STATUS "SaddlePointLinearSolverm requested with MPI library. Searching MPI library.")
-  set( MPI_HOME ${PETSC_DIR}/${PETSC_ARCH} )
+  if   ( NOT MPI_HOME)
+    set( MPI_HOME ${PETSC_DIR}/${PETSC_ARCH} )
+  endif( NOT MPI_HOME)
   find_package(MPI REQUIRED)
 endif( SaddlePointLinearSolver_WITH_MPI )
 
