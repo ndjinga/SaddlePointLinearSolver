@@ -3,6 +3,7 @@ from pathlib import Path
 import pandas as pd
 import json
 import shutil
+from loguru import logger
 
 def generate_metadata():
     parser = argparse.ArgumentParser(description="Generate metadata for simulation tests.")
@@ -17,23 +18,23 @@ def generate_metadata():
     matrices_metadata_path = Path(data_path) / "matrices_metadata.csv"
 
     if not data_path.is_dir():
-        print(f"[ERROR] Invalid data path: {data_path}")
+        logger.error(f"Invalid data path: {data_path}")
         return 1
     if not matrices_path.is_dir():
-        print(f"[ERROR] 'matrices' directory not found in {data_path}")
+        logger.error(f"'matrices' directory not found in {data_path}")
         return 1
     if not matrices_metadata_path.is_file():
-        print(f"[ERROR] 'matrices_metadata.csv' file not found in {data_path}")
+        logger.error(f"'matrices_metadata.csv' file not found in {data_path}")
         return 1
 
     data = pd.read_csv(matrices_metadata_path)
     if data.empty:
-        print("[ERROR] 'matrices_metadata.csv' is empty.")
+        logger.error(f"'matrices_metadata.csv' is empty.")
         return 1
 
     if args.reset:
         if metadata_path.is_dir():
-            print(f"[INFO] Resetting metadata directory content (except README.md): {metadata_path}")
+            logger.info(f"Resetting metadata directory content (except README.md): {metadata_path}")
             for item in metadata_path.iterdir():
                 if item.name == ".gitkeep":
                     continue
@@ -42,30 +43,31 @@ def generate_metadata():
                 else:
                     item.unlink()
 
+    logger.info("Generating metadata files...")
     for index, row in data.iterrows():
         matrix_name = row['name']
         if not matrix_name:
-            print(f"[ERROR] Missing 'name' in row {index} of 'matrices_metadata.csv'.")
-            return 1
+            logger.error(f"Missing 'name' in row {index} of 'matrices_metadata.csv'.")
+            continue
         matrix_type = row['type']
         if not matrix_type:
-            print(f"[ERROR] Missing 'type' in row {index} of 'matrices_metadata.csv'.")
-            return 1
+            logger.error(f"Missing 'type' in row {index} of 'matrices_metadata.csv'.")
+            continue
         matrix_nU = row['nU']
         if not matrix_nU:
-            print(f"[ERROR] Missing 'nU' in row {index} of 'matrices_metadata.csv'.")
-            return 1
+            logger.error(f"Missing 'nU' in row {index} of 'matrices_metadata.csv'.")
+            continue
         matrix_nP = row['nP']
         if not matrix_nP:
-            print(f"[ERROR] Missing 'nP' in row {index} of 'matrices_metadata.csv'.")
-            return 1
+            logger.error(f"Missing 'nP' in row {index} of 'matrices_metadata.csv'.")
+            continue
 
 
         generic_path = f"{matrix_type}/{matrix_name}"
         matrix_path = matrices_path / (generic_path + ".petsc")
         if not matrix_path.is_file():
-            print(f"[ERROR] Matrix file '{matrix_path}' does not exist.")
-            return 1
+            logger.error(f"Matrix file '{matrix_path}' does not exist.")
+            continue
 
         output_path = metadata_path / (generic_path + "_metadata.json")
 
@@ -79,6 +81,7 @@ def generate_metadata():
         }
         with open(output_path, 'w') as f:
             json.dump(metadata, f, indent=2)
+        logger.info(f"{Path(output_path.parts[-2]) / output_path.name} generated.")
 
     return 0
 
