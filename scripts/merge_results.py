@@ -2,6 +2,7 @@ import argparse
 import csv
 import json
 from pathlib import Path
+from loguru import logger
 
 REQUIRED_COLUMNS = [
     "test-id", "executable-name", "matrix-name", "matrix-type",
@@ -51,7 +52,7 @@ def main():
         writer.writerow(REQUIRED_COLUMNS)
         writer.writerows(rows)
 
-    print(f"[INFO] Merged {len(rows)} results into {output_path}")
+    logger.info(f"Merged {len(rows)} results into {output_path}")
 
 
 if __name__ == "__main__":
