@@ -72,7 +72,7 @@ def run_one_test():
     subprocess.run(cmd, check=True)
 
 
-    with open(tmp_path) as f:
+    with open(tmp_path / f"output.json") as f: # a terme : f"{test_id}__{matrix_name}__{matrix_type}.json"
         output_data = json.load(f)
 
 
@@ -82,6 +82,9 @@ def run_one_test():
         "matrix-name": matrix_name,
         "matrix-type": matrix_type,
         "n-proc": n_proc,
+        "mesh-size" : -42,
+        "nU" : nU,
+        "nP" : nP,
     }
     result.update(output_data)
 
