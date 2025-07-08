@@ -8,3 +8,5 @@ tests/results/*
 
 tests/tables/*
 !tests/tables/.gitkeep
+
+tests/generated_tests.cmake

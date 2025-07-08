@@ -1,6 +1,19 @@
+# Find Python3 interpreter (required)
 find_package(Python3 REQUIRED COMPONENTS Interpreter)
 
-add_custom_target(merge_results
+# Define path to generated tests CMake file
+set(GENERATED_TESTS_FILE "${CMAKE_CURRENT_SOURCE_DIR}/generated_tests.cmake")
+
+# Create the generated tests file if it does not exist (empty file)
+if(NOT EXISTS ${GENERATED_TESTS_FILE})
+    file(WRITE ${GENERATED_TESTS_FILE} "")
+endif()
+
+# Include the generated tests file
+include(${GENERATED_TESTS_FILE})
+
+# Custom target to merge test results into a CSV file
+add_custom_target(merge-results
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/merge_results.py
     --results-dir ${CMAKE_CURRENT_SOURCE_DIR}/results
     --tables-dir ${CMAKE_CURRENT_SOURCE_DIR}/tables
@@ -9,36 +22,30 @@ add_custom_target(merge_results
   COMMENT "Merge test results."
 )
 
+# Custom target to generate CMake tests from CSV input
+add_custom_target(generate-tests
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/generate_tests.py
+    --input-csv-file ${CMAKE_CURRENT_SOURCE_DIR}/tests_parameters.csv
+    --output-cmake-file ${CMAKE_CURRENT_SOURCE_DIR}/generated_tests.cmake
+    --data-dir ${CMAKE_CURRENT_SOURCE_DIR}/data
+    --test-results-dir ${CMAKE_CURRENT_SOURCE_DIR}/results
+    --tmp-dir ${CMAKE_CURRENT_SOURCE_DIR}/tmp
 
-#enable_testing()
+  COMMENT "Generate tests."
+)
 
-#set(TEST_DATA_DIR ${CMAKE_CURRENT_SOURCE_DIR}/data)
-#set(TEST_RESULT_DIR ${CMAKE_CURRENT_SOURCE_DIR}/results)
-#set(TEST_TMP_PATH ${CMAKE_BINARY_DIR}/tests/tmp/output.json)
+# Custom target to generate metadata JSON files
+add_custom_target(generate-metadata
+  COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/generate_metadata.py
+    --data-path ${CMAKE_CURRENT_SOURCE_DIR}/data
+    --reset
 
-#set(TEST_ID test1)
-#add_test(
-#  NAME ${TEST_ID}
-#  COMMAND python3 ${CMAKE_SOURCE_DIR}/scripts/run_one_test.py
-#    --test-id ${TEST_ID}
-#    --executable ${CMAKE_BINARY_DIR}/SaddlePointLinearSolver_test
-#    --matrix-name Assembly_PolyMAC_1_vp
-#    --matrix-type AssemblyMesh
-#    --n-proc 1
-#    --data ${TEST_DATA_DIR}
-#    --result-path ${TEST_RESULT_DIR}
-#    --tmp-path ${TEST_TMP_PATH}
-#)
+  COMMENT "Generate tests."
+)
 
-
-#python3 ../SaddlePointLinearSolver_SRC/scripts/run_one_test.py \
-#    --test-id test \
-#    --executable /home/marwane/Desktop/CEA/projet/build/SaddlePointLinearSolver_test \
-#    --matrix-name Assembly_PolyMAC_1_vp \
-#    --matrix-type AssemblyMesh \
-#    --n-proc 1 \
-#    --data ../SaddlePointLinearSolver_SRC/tests/data/ \
-#    --result-path ../SaddlePointLinearSolver_SRC/tests/results \
-#    --tmp-path tmp/output.json
-
-include(${CMAKE_CURRENT_SOURCE_DIR}/generated_tests.cmake)
+# Custom target to clean previous test results
+# This command is not portable on Windows
+add_custom_target(clean-results
+  COMMAND rm -rf ${CMAKE_CURRENT_SOURCE_DIR}/results/*
+  COMMENT "Clean results."
+)
