@@ -395,7 +395,11 @@ int main( int argc, char **args ){
 	fprintf(outputFile, "  \"iter1\": %d,\n", iter1);
 	fprintf(outputFile, "  \"iter2\": %d,\n", iter2);
 	fprintf(outputFile, "  \"residual\": %.6e,\n", residu);
-	fprintf(outputFile, "  \"error\": %.6e\n", error);
+	fprintf(outputFile, "  \"total-error\": %.6e,\n", error);
+	fprintf(outputFile, "  \"pressure-error\": %.6e,\n", error_u);
+	fprintf(outputFile, "  \"velocity-error\": %.6e,\n", error_p);
+	fprintf(outputFile, "  \"computation-time\": %d,\n", -42);
+	fprintf(outputFile, "  \"memory-consumption\": %d\n", -42);
 	fprintf(outputFile, "}\n");
 	fclose(outputFile);
 	printf("testOutput saved in tmp/output.json\n");
