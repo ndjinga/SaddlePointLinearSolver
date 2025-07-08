@@ -16,6 +16,45 @@ python3 scripts/generate_metadata.py \
 - --data-path : Root directory containing matrices/, metadata/, and matrices_metadata.csv (required)
 - --reset : If set, clears the metadata/ directory before generating new metadata (optional)
 
+## generate_tests
+
+This script reads a CSV file describing test configurations and generates a CMake file containing the corresponding `add_test` entries. Each test runs a Python wrapper that executes a simulation binary and records the results.
+
+The generated CMake file should then be included in a `CMakeLists.txt` (for example, the one in the tests directory) to integrate the tests into the build and testing process.
+
+### Usage
+
+```bash
+python3 scripts/generate_tests.py \
+  --input-csv-file <test_parameters_csv> \
+  --output-cmake-file <generated_cmake_file> \
+  --data-dir <data_directory> \
+  --test-results-dir <results_output_directory> \
+  --tmp-dir <temporary_directory>
+```
+
+### Arguments
+
+- `--input-csv-file` : Path to the CSV file describing test configurations (required)
+- `--output-cmake-file` : Path to the generated CMake file (required)
+- `--data-dir` : Directory containing meshes, metadata, and matrix metadata CSV (required)
+- `--test-results-dir` : Where test output JSONs will be stored (required)
+- `--tmp-dir` : Directory for temporary JSON outputs (required)
+
+### CSV Format & `n_proc` Behavior
+
+The input CSV must include the following columns:
+test_id, executable, matrix_name, matrix_type, n_proc
+
+The n_proc field supports 3 formats:
+
+- Single value: 2 → generates one test with 2 processes.
+- List: {1,3,5} → generates 3 tests: one for each value in the list.
+- Range: [2-5] → generates 4 tests: 2, 3, 4, and 5 processes.
+
+Each test will receive a unique test name. For multiple n_proc values, a suffix is appended:
+e.g., my_test becomes my_test_nproc3, my_test_nproc5, etc.
+
 ## merge_results.py
 
 This script merges multiple JSON result files into a single CSV table.
