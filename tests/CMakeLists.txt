@@ -29,7 +29,7 @@ add_custom_target(generate-tests
     --output-cmake-file ${CMAKE_CURRENT_SOURCE_DIR}/generated_tests.cmake
     --data-dir ${CMAKE_CURRENT_SOURCE_DIR}/data
     --test-results-dir ${CMAKE_CURRENT_SOURCE_DIR}/results
-    --tmp-dir ${CMAKE_CURRENT_SOURCE_DIR}/tmp
+    --tmp-dir ${CMAKE_CURRENT_BINARY_DIR}/tmp
 
   COMMENT "Generate tests."
 )

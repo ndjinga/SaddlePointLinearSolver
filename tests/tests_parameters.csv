@@ -1,6 +1,6 @@
 test_id,executable,matrix_name,matrix_type,n_proc
-test01,SaddlePointLinearSolver_test,Assembly_PolyMAC_1_vp,AssemblyMesh,1
-test02,SaddlePointLinearSolver_test,Assembly_PolyMAC_2_vp,AssemblyMesh,2
-test03,SaddlePointLinearSolver_test,Assembly_PolyMAC_3_vp,AssemblyMesh,"{2,1, 6}"
-test04,SaddlePointLinearSolver_test,Assembly_PolyMAC_4_vp,AssemblyMesh,[1 -6]
-test05,SaddlePointLinearSolver_test,Assembly_PolyMAC_5_vp,AssemblyMesh,5
+test01,testSaddlePointLinearSolver_2x2_par,Assembly_PolyMAC_1_vp,AssemblyMesh,1
+test02,testSaddlePointLinearSolver_2x2_par,Assembly_PolyMAC_2_vp,AssemblyMesh,2
+test03,testSaddlePointLinearSolver_2x2_par,Assembly_PolyMAC_3_vp,AssemblyMesh,"{2,1, 6}"
+test04,testSaddlePointLinearSolver_2x2_par,Assembly_PolyMAC_4_vp,AssemblyMesh,[1 -6]
+test05,testSaddlePointLinearSolver_2x2_par,Assembly_PolyMAC_5_vp,AssemblyMesh,5
