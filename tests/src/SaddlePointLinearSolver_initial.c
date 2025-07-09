@@ -171,6 +171,7 @@ int main( int argc, char **args ){
 	Mat_array[2]=G_hat;//Bottom left block of A_hat
 
 	// Creation of -D
+	//MatScale(C_hat,-1.0);
 	MatScale(D,-1.0);
 	Mat_array[1]=D;//Top right block of A_hat
 

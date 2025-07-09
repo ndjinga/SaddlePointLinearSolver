@@ -68,8 +68,8 @@ Mat splitPETScMatrix2x2(Mat A_input, PetscInt n_u, PetscInt n_p, Mat * M, Mat * 
 void buildRHSVectorAndBhat( Mat A_input, PetscInt n_u, PetscInt n_p, Vec * X_anal, Vec * b_input, Vec * b_input_p, Vec * b_input_u, Vec * b_hat, IS is_U, IS is_P)
 {
 	Vec X_array[2];
-	PetscScalar y[n_p];
-	PetscInt i_p[n_p];
+	PetscScalar y_p[n_p], y_u[n_u];
+	PetscInt    i_p[n_p], i_u[n_u];
 
 	PetscPrintf(PETSC_COMM_WORLD,"Creation of the RHS, exact and numerical solution vectors...\n");
 	VecCreate(PETSC_COMM_WORLD,b_input);
@@ -81,10 +81,15 @@ void buildRHSVectorAndBhat( Mat A_input, PetscInt n_u, PetscInt n_p, Vec * X_ana
 	
 	VecSet(*X_anal,0.0);
 	for (int i = n_u;i<n_u+n_p;i++){
-		y[i-n_u]=1.0/i;
+		y_p[i-n_u]=1.0/i;
 		i_p[i-n_u]=i;
 	}
-	VecSetValues(*X_anal,n_p,i_p,y,INSERT_VALUES);
+	for (int i = 0;i<n_u;i++){
+		y_u[i]=1.0/(i+1);
+		i_u[i]=i;
+	}
+	VecSetValues(*X_anal,n_p,i_p,y_p,INSERT_VALUES);
+	//VecSetValues(*X_anal,n_u,i_u,y_u,INSERT_VALUES);
 	VecAssemblyBegin(*X_anal);
 	VecAssemblyEnd(*X_anal);
 	VecNormalize( *X_anal, NULL);
@@ -95,7 +100,7 @@ void buildRHSVectorAndBhat( Mat A_input, PetscInt n_u, PetscInt n_p, Vec * X_ana
 	//Swap the pressure and velocity components + change the sign of the pressure components of b_input (this is due to the change in ordering of the variable in pierre-loic original script)
 	VecGetSubVector( *b_input, is_P, b_input_p);
 	VecGetSubVector( *b_input, is_U, b_input_u);
-	//VecScale(b_input_p, -1);
+	//VecScale(*b_input_p, -1);
 	X_array[0] = *b_input_p;
 	X_array[1] = *b_input_u;
 
