@@ -48,22 +48,26 @@ if( SaddlePointLinearSolver_WITH_TESTS )
  set(MY_TEST_SOURCES
  tests/src/SaddlePointLinearSolver.c
  tests/src/testSaddlePointLinearSolver_2x2_par.c
- #tests/src/testSaddlePointLinearSolver_2x2_seq.c
+ tests/src/testSaddlePointLinearSolver_2x2_seq.c
  #tests/src/testSaddlePointLinearSolver_nxn_par.c
  #tests/src/testSaddlePointLinearSolver_2x2_Shat.c
  )
 
  # build test main exe
  add_executable(testSaddlePointLinearSolver_2x2_par tests/src/testSaddlePointLinearSolver_2x2_par.c)
+ add_executable(testSaddlePointLinearSolver_2x2_seq tests/src/testSaddlePointLinearSolver_2x2_seq.c)
  add_executable(testSaddlePointLinearSolver tests/src/SaddlePointLinearSolver.c)
  target_include_directories(testSaddlePointLinearSolver_2x2_par PRIVATE ${PETSC_INCLUDES} )
+ target_include_directories(testSaddlePointLinearSolver_2x2_seq PRIVATE ${PETSC_INCLUDES} )
  target_include_directories(testSaddlePointLinearSolver PRIVATE ${PETSC_INCLUDES} )
  #target_link_libraries(testSaddlePointLinearSolver_2x2_par SaddlePointLinearSolverLib )
+ target_link_libraries(testSaddlePointLinearSolver_2x2_seq ${PETSC_LIBRARIES} ${MPI_HOME}/lib/libmpi.so)
  target_link_libraries(testSaddlePointLinearSolver_2x2_par ${PETSC_LIBRARIES} ${MPI_HOME}/lib/libmpi.so)
  target_link_libraries(testSaddlePointLinearSolver ${PETSC_LIBRARIES} ${MPI_HOME}/lib/libmpi.so)
 
- #add_test(NAME testSaddlePointLinearSolver_2x2_par  COMMAND "./testSaddlePointLinearSolver_2x2_par" "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/AssemblyMesh/Assembly_PolyMAC_1_vp.petsc" "-nU" "20344" "-nP" "9552")
- #add_test(NAME testSaddlePointLinearSolver  COMMAND "./testSaddlePointLinearSolver" "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/AssemblyMesh/Assembly_PolyMAC_1_vp.petsc" "-nU" "20344" "-nP" "9552")
+ add_test(NAME testSaddlePointLinearSolver_2x2_seq  COMMAND "./testSaddlePointLinearSolver_2x2_seq" "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/AssemblyMesh/Assembly_PolyMAC_1_vp.petsc" "-nU" "20344" "-nP" "9552" "-on_error_attach_debugger")
+ add_test(NAME testSaddlePointLinearSolver_2x2_par  COMMAND "./testSaddlePointLinearSolver_2x2_par" "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/AssemblyMesh/Assembly_PolyMAC_1_vp.petsc" "-nU" "20344" "-nP" "9552")
+ add_test(NAME testSaddlePointLinearSolver          COMMAND "./testSaddlePointLinearSolver"         "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/AssemblyMesh/Assembly_PolyMAC_1_vp.petsc" "-nU" "20344" "-nP" "9552")
 
  install(TARGETS testSaddlePointLinearSolver_2x2_par DESTINATION tests)
  add_subdirectory(tests)
