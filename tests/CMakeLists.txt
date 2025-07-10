@@ -50,7 +50,7 @@ add_custom_target(generate-tests
 # Custom target to generate metadata JSON files
 add_custom_target(generate-metadata
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/generate_metadata.py
-    --data-path ${CMAKE_CURRENT_SOURCE_DIR}/data
+    --data-dir ${CMAKE_CURRENT_SOURCE_DIR}/data
     --reset
 
   COMMENT "Generate tests."
