@@ -17,14 +17,16 @@ set (PETSC_ARCH           OFF CACHE STRING "PETSc architecture" )
 set (MPI_HOME             OFF CACHE STRING "MPI library path" )
 
 set(MY_SOURCES
-#SaddlePointLinearSolver.c
-#SaddlePointLinearSolver_par.c
-#SaddlePointLinearSolver_par2.c
-#SaddlePointLinearSolver_Shat.c
+src/SaddlePointLinearSolver.c
+)
+set(MY_HEADERS
+src/
 )
 
-#add_library(SaddlePointLinearSolverLib SHARED ${MY_SOURCES})
-#install(TARGETS SaddlePointLinearSolverLib DESTINATION lib)
+add_library(SaddlePointLinearSolverLib SHARED ${MY_SOURCES})
+message(STATUS ${PETSC_INCLUDES})
+target_include_directories(SaddlePointLinearSolverLib PRIVATE ${PETSC_INCLUDES} ${MY_HEADERS})
+install(TARGETS SaddlePointLinearSolverLib DESTINATION lib)
 
 find_package (PETSc 3.4 REQUIRED)
 
@@ -58,9 +60,10 @@ if( SaddlePointLinearSolver_WITH_TESTS )
  add_executable(testSaddlePointLinearSolver_2x2_seq tests/src/testSaddlePointLinearSolver_2x2_seq.c)
  add_executable(testSaddlePointLinearSolver_2x2_par tests/src/testSaddlePointLinearSolver_2x2_par.c)
  target_include_directories(testSaddlePointLinearSolver_initial PRIVATE ${PETSC_INCLUDES} )
- target_include_directories(testSaddlePointLinearSolver_2x2_seq PRIVATE ${PETSC_INCLUDES} )
+ target_include_directories(testSaddlePointLinearSolver_2x2_seq PRIVATE ${PETSC_INCLUDES}  ${MY_HEADERS})
  target_include_directories(testSaddlePointLinearSolver_2x2_par PRIVATE ${PETSC_INCLUDES} )
- #target_link_libraries(testSaddlePointLinearSolver_2x2_par SaddlePointLinearSolverLib )
+ target_link_libraries(testSaddlePointLinearSolver_2x2_seq SaddlePointLinearSolverLib )
+
  target_link_libraries(testSaddlePointLinearSolver_initial ${PETSC_LIBRARIES} ${MPI_HOME}/lib/libmpi.so)
  target_link_libraries(testSaddlePointLinearSolver_2x2_seq ${PETSC_LIBRARIES} ${MPI_HOME}/lib/libmpi.so)
  target_link_libraries(testSaddlePointLinearSolver_2x2_par ${PETSC_LIBRARIES} ${MPI_HOME}/lib/libmpi.so)
