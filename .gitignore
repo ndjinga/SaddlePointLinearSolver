@@ -3,8 +3,8 @@
 tests/data/metadata/*
 !tests/data/metadata/.gitkeep
 
-tests/results/*
-!tests/results/.gitkeep
+tests/test_results/*
+!tests/test_results/.gitkeep
 
 tests/tables/*
 !tests/tables/.gitkeep

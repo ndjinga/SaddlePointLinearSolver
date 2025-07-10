@@ -53,8 +53,8 @@ def generate_tests():
             cmake_file.write(f"    --matrix-name {matrix_name}\n")
             cmake_file.write(f"    --matrix-type {matrix_type}\n")
             cmake_file.write(f"    --n-proc {n_proc}\n")
-            cmake_file.write( "    --data ${TEST_DATA_DIR}\n")
-            cmake_file.write( "    --result-path ${TEST_RESULT_DIR}\n")
+            cmake_file.write( "    --data-dir ${TEST_DATA_DIR}\n")
+            cmake_file.write( "    --test-results-dir ${TEST_RESULT_DIR}\n")
             cmake_file.write( "    --tmp-path ${TEST_TMP_PATH}\n")
             cmake_file.write(")\n\n")
         return

@@ -7,12 +7,12 @@ from loguru import logger
 
 def generate_metadata():
     parser = argparse.ArgumentParser(description="Generate metadata for simulation tests.")
-    parser.add_argument("--data-path", type=str, required=True, help="Root directory containing 'matrices' and 'metadata' subfolders, and the 'matrices_metadata' CSV file with matrices parameters.")
+    parser.add_argument("--data-dir", type=str, required=True, help="Root directory containing 'matrices' and 'metadata' subfolders, and the 'matrices_metadata' CSV file with matrices parameters.")
     parser.add_argument("--reset", action="store_true", help="Reset the metadata directory before generating new metadata.")
     args = parser.parse_args()
 
     # Validate the provided paths
-    data_path = Path(args.data_path)
+    data_path = Path(args.data_dir)
     matrices_path = Path(data_path) / "matrices"
     metadata_path = Path(data_path) / "metadata"
     matrices_metadata_path = Path(data_path) / "matrices_metadata.csv"

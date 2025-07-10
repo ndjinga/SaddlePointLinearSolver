@@ -13,7 +13,7 @@ REQUIRED_COLUMNS = [
 
 def parse_args():
     parser = argparse.ArgumentParser(description="Merge JSON results into a CSV.")
-    parser.add_argument("--results-dir", required=True, help="Directory with JSON result files")
+    parser.add_argument("--test-results-dir", required=True, help="Directory with JSON result files")
     parser.add_argument("--tables-dir", required=True, help="Directory to write the CSV")
     parser.add_argument("--output-name", required=True, help="CSV filename")
     parser.add_argument("--reset", action="store_true", help="Overwrite existing CSV")
@@ -21,12 +21,12 @@ def parse_args():
 
 def main():
     args = parse_args()
-    results_dir = args.results_dir
+    test_results_dir = args.test_results_dir
     tables_dir = args.tables_dir
     output_name =args.output_name
     reset = args.reset
 
-    results_path = Path(results_dir)
+    results_path = Path(test_results_dir)
     if not results_path.is_dir():
         raise NotADirectoryError(f"Results directory does not exist: {results_path}")
 

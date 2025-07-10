@@ -11,8 +11,8 @@ def run_one_test():
     parser.add_argument("--matrix-name", type=str, required=True, help="Name of the matrix to test (without extension).")
     parser.add_argument("--matrix-type", type=str, required=True, help="Type of the matrix to test.")
     parser.add_argument("--n-proc", type=int, default=1, help="Number of processes to use for the test.")
-    parser.add_argument("--data", type=str, required=True, help="Root directory containing 'meshes' and 'metadata' subfolders, and the 'matrices_metadata' CSV file with matrices parameters.")
-    parser.add_argument("--result-path", type=str, required=True, help="Path to save the results of the test.")
+    parser.add_argument("--data-dir", type=str, required=True, help="Root directory containing 'meshes' and 'metadata' subfolders, and the 'matrices_metadata' CSV file with matrices parameters.")
+    parser.add_argument("--test-results-dir", type=str, required=True, help="Path to save the result of the test.")
     parser.add_argument("--tmp-path", type=str, required=True, help="Temporary path to store intermediate results.")
     args = parser.parse_args()
 
@@ -21,8 +21,8 @@ def run_one_test():
     matrix_name = args.matrix_name
     matrix_type = args.matrix_type
     n_proc = args.n_proc
-    data = args.data
-    result_directory = Path(args.result_path)
+    data_path = Path(args.data_dir)
+    result_directory = Path(args.test_results_dir)
     tmp_path = Path(args.tmp_path)
 
     executable_path = Path(executable)
@@ -31,9 +31,8 @@ def run_one_test():
     if not os.access(executable_path, os.X_OK):
         raise PermissionError(f"Executable is not executable: {executable_path}")
 
-    data_path = Path(data)
-    if not data_path.exists():
-        raise FileNotFoundError(f"Data path does not exist: {data_path}")
+    if not data_path.is_dir():
+        raise FileNotFoundError(f"Data directory does not exist: {data_path}")
 
     matrix_path = data_path / "matrices" / f"{matrix_type}/{matrix_name}.petsc"
     if not matrix_path.exists():
