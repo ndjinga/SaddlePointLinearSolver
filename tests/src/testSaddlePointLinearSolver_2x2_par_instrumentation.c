@@ -428,7 +428,7 @@ int main( int argc, char **args ){
         }
     }
 
-	double time = info_load_matrix_stage.time + info_split_matrix_stage.time + info_RHS_vector_stage.time + info_linear_system_stage.time;
+	double total_time = info_load_matrix_stage.time + info_split_matrix_stage.time + info_RHS_vector_stage.time + info_linear_system_stage.time;
 	double memory = info_linear_system_stage.mallocIncrease;
 
 	FILE* outputFile = fopen("tmp/output.json", "w");
@@ -440,7 +440,11 @@ int main( int argc, char **args ){
 	fprintf(outputFile, "  \"total-error\": %e,\n", error);
 	fprintf(outputFile, "  \"pressure-error\": %e,\n", error_u);
 	fprintf(outputFile, "  \"velocity-error\": %e,\n", error_p);
-	fprintf(outputFile, "  \"computation-time\": %e,\n", time);
+	fprintf(outputFile, "  \"matrix-load-time\": %e,\n", info_load_matrix_stage.time);
+	fprintf(outputFile, "  \"matrix-split-time\": %e,\n", info_split_matrix_stage.time);
+	fprintf(outputFile, "  \"rhs-build-time\": %e,\n", info_RHS_vector_stage.time);
+	fprintf(outputFile, "  \"solve-time\": %e,\n", info_linear_system_stage.time);
+	fprintf(outputFile, "  \"total-time\": %e,\n", total_time);
 	fprintf(outputFile, "  \"memory-consumption\": %e\n", memory);
 	fprintf(outputFile, "}\n");
 	fclose(outputFile);

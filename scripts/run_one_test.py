@@ -79,7 +79,7 @@ def run_one_test():
         "matrix-name": matrix_name,
         "matrix-type": matrix_type,
         "n-proc": n_proc,
-        "mesh-size": nU + nP,
+        "matrix-size": nU + nP,
         "nU": nU,
         "nP": nP,
     }

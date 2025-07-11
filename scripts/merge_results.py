@@ -6,9 +6,10 @@ from loguru import logger
 
 REQUIRED_COLUMNS = [
     "test-id", "executable-name", "matrix-name", "matrix-type",
-    "n-proc", "mesh-size", "nU", "nP", "iter", "iter1", "iter2",
+    "n-proc", "matrix-size", "nU", "nP", "iter", "iter1", "iter2",
     "residual", "total-error", "pressure-error", "velocity-error",
-    "computation-time", "memory-consumption"
+    "matrix-load-time", "matrix-split-time", "rhs-build-time",
+    "solve-time", "total-time", "memory-consumption"
 ]
 
 def parse_args():
