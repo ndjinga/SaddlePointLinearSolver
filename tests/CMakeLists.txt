@@ -10,15 +10,12 @@ if(NOT EXISTS ${GENERATED_TESTS_FILE})
 endif()
 
 # Define the path to the directory containing input data files
-# These variables can be set externally when configuring CMake
 set (DATA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/data" CACHE PATH "Path to data directory")
 
 # Define the path to the directory where test results will be stored
-# These variables can be set externally when configuring CMake
 set (TEST_RESULTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/test_results" CACHE PATH "Path to test_results directory")
 
 # Define the path to the directory containing tables for test results
-# These variables can be set externally when configuring CMake
 set (TABLES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/tables" CACHE PATH "Path to tables directory")
 
 
@@ -28,7 +25,7 @@ include(${GENERATED_TESTS_FILE})
 # Custom target to merge test results into a CSV file
 add_custom_target(merge-results
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/merge_results.py
-    --test-results-dir ${CMAKE_CURRENT_SOURCE_DIR}/test_results
+    --test-results-dir ${TEST_RESULTS_DIR}
     --tables-dir ${CMAKE_CURRENT_SOURCE_DIR}/tables
     --output-name output
     --reset
@@ -52,13 +49,12 @@ add_custom_target(generate-metadata
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/generate_metadata.py
     --data-dir ${CMAKE_CURRENT_SOURCE_DIR}/data
     --reset
-
-  COMMENT "Generate tests."
+  COMMENT "Generate metadata files."
 )
 
 # Custom target to clean previous test results
 # This command is not portable on Windows
 add_custom_target(clean-results
-  COMMAND rm -rf ${CMAKE_CURRENT_SOURCE_DIR}/test_results/*
+  COMMAND rm -rf ${TEST_RESULTS_DIR}/*
   COMMENT "Clean results."
 )
