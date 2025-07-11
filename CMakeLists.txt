@@ -48,29 +48,34 @@ if( SaddlePointLinearSolver_WITH_TESTS )
  enable_testing ()
 
  set(MY_TEST_SOURCES
- tests/src/SaddlePointLinearSolver.c
- tests/src/testSaddlePointLinearSolver_2x2_par.c
+ tests/src/testSaddlePointLinearSolver_initial.c
  tests/src/testSaddlePointLinearSolver_2x2_seq.c
+ tests/src/testSaddlePointLinearSolver_2x2_par.c
+ tests/src/testSaddlePointLinearSolver_2x2_par_instrumentation.c
  #tests/src/testSaddlePointLinearSolver_nxn_par.c
  #tests/src/testSaddlePointLinearSolver_2x2_Shat.c
  )
 
  # build test main exe
- add_executable(testSaddlePointLinearSolver_initial tests/src/SaddlePointLinearSolver_initial.c)
- add_executable(testSaddlePointLinearSolver_2x2_seq tests/src/testSaddlePointLinearSolver_2x2_seq.c)
- add_executable(testSaddlePointLinearSolver_2x2_par tests/src/testSaddlePointLinearSolver_2x2_par.c)
- target_include_directories(testSaddlePointLinearSolver_initial PRIVATE ${PETSC_INCLUDES} )
- target_include_directories(testSaddlePointLinearSolver_2x2_seq PRIVATE ${PETSC_INCLUDES}  ${MY_HEADERS})
- target_include_directories(testSaddlePointLinearSolver_2x2_par PRIVATE ${PETSC_INCLUDES} )
+ add_executable(testSaddlePointLinearSolver_initial                 tests/src/testSaddlePointLinearSolver_initial.c)
+ add_executable(testSaddlePointLinearSolver_2x2_seq                 tests/src/testSaddlePointLinearSolver_2x2_seq.c)
+ add_executable(testSaddlePointLinearSolver_2x2_par                 tests/src/testSaddlePointLinearSolver_2x2_par.c)
+ add_executable(testSaddlePointLinearSolver_2x2_par_instrumentation tests/src/testSaddlePointLinearSolver_2x2_par_instrumentation.c)
+ target_include_directories(testSaddlePointLinearSolver_initial                 PRIVATE ${PETSC_INCLUDES} )
+ target_include_directories(testSaddlePointLinearSolver_2x2_seq                 PRIVATE ${PETSC_INCLUDES}  ${MY_HEADERS})
+ target_include_directories(testSaddlePointLinearSolver_2x2_par                 PRIVATE ${PETSC_INCLUDES} )
+ target_include_directories(testSaddlePointLinearSolver_2x2_par_instrumentation PRIVATE ${PETSC_INCLUDES} )
  target_link_libraries(testSaddlePointLinearSolver_2x2_seq SaddlePointLinearSolverLib )
 
- target_link_libraries(testSaddlePointLinearSolver_initial ${PETSC_LIBRARIES} ${MPI_HOME}/lib/libmpi.so)
- target_link_libraries(testSaddlePointLinearSolver_2x2_seq ${PETSC_LIBRARIES} ${MPI_HOME}/lib/libmpi.so)
- target_link_libraries(testSaddlePointLinearSolver_2x2_par ${PETSC_LIBRARIES} ${MPI_HOME}/lib/libmpi.so)
+ target_link_libraries(testSaddlePointLinearSolver_initial                 ${PETSC_LIBRARIES} ${MPI_HOME}/lib/libmpi.so)
+ target_link_libraries(testSaddlePointLinearSolver_2x2_seq                 ${PETSC_LIBRARIES} ${MPI_HOME}/lib/libmpi.so)
+ target_link_libraries(testSaddlePointLinearSolver_2x2_par                 ${PETSC_LIBRARIES} ${MPI_HOME}/lib/libmpi.so)
+ target_link_libraries(testSaddlePointLinearSolver_2x2_par_instrumentation ${PETSC_LIBRARIES} ${MPI_HOME}/lib/libmpi.so)
 
  add_test(NAME testSaddlePointLinearSolver_initial          COMMAND "./testSaddlePointLinearSolver_initial"         "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/AssemblyMesh/Assembly_PolyMAC_1_vp.petsc" "-nU" "20344" "-nP" "9552" "-pc_fieldsplit_type" "schur" "-pc_fieldsplit_schur_fact_type" "lower" "-fieldsplit_0_ksp_type" "gmres" "-fieldsplit_0_pc_type" "gamg" "-fieldsplit_0_pc_gamg_type" "agg" "-fieldsplit_1_ksp_type" "preonly" "-fieldsplit_1_pc_type" "lu")
  add_test(NAME testSaddlePointLinearSolver_2x2_seq  COMMAND "./testSaddlePointLinearSolver_2x2_seq" "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/AssemblyMesh/Assembly_PolyMAC_1_vp.petsc" "-nU" "20344" "-nP" "9552" "-pc_fieldsplit_type" "schur" "-pc_fieldsplit_schur_fact_type" "lower" "-fieldsplit_0_ksp_type" "gmres" "-fieldsplit_0_pc_type" "gamg" "-fieldsplit_0_pc_gamg_type" "agg" "-fieldsplit_1_ksp_type" "preonly" "-fieldsplit_1_pc_type" "lu")
  add_test(NAME testSaddlePointLinearSolver_2x2_par  COMMAND "./testSaddlePointLinearSolver_2x2_par" "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/AssemblyMesh/Assembly_PolyMAC_1_vp.petsc" "-nU" "20344" "-nP" "9552")
+ add_test(NAME testSaddlePointLinearSolver_2x2_par_instrumentation  COMMAND "./testSaddlePointLinearSolver_2x2_par_instrumentation" "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/AssemblyMesh/Assembly_PolyMAC_1_vp.petsc" "-nU" "20344" "-nP" "9552")
 
  install(TARGETS testSaddlePointLinearSolver_initial DESTINATION tests)
  install(TARGETS testSaddlePointLinearSolver_2x2_seq DESTINATION tests)
