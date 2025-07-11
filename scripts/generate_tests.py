@@ -55,7 +55,7 @@ def generate_tests():
             cmake_file.write(f"    --n-proc {n_proc}\n")
             cmake_file.write( "    --data-dir ${TEST_DATA_DIR}\n")
             cmake_file.write( "    --test-results-dir ${TEST_RESULT_DIR}\n")
-            cmake_file.write( "    --tmp-path ${TEST_TMP_PATH}\n")
+            cmake_file.write( "    --tmp-dir ${TEST_TMP_PATH}\n")
             cmake_file.write(")\n\n")
         return
     
