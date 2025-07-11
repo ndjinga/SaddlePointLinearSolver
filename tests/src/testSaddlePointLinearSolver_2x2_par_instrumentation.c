@@ -414,6 +414,37 @@ int main( int argc, char **args ){
 	PetscPrintf(PETSC_COMM_WORLD,"Total L2 Error : ||X_anal - X_num|| = %e, (remember ||X_anal||=1)\n", error);
 
 	PetscCheck( error < 1.e-5, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high\n");
+
+//##### Save the results in a JSON file
+	#include <unistd.h>
+	#include <fcntl.h>
+	#include <sys/stat.h>
+
+    printf("Creating output directory tmp...\n");
+    if (access("tmp", F_OK) == -1) {
+        if (mkdir("tmp", 0777) == -1) {
+            perror("Error creating directory tmp");
+            return 1;
+        }
+    }
+
+	double time = info_load_matrix_stage.time + info_split_matrix_stage.time + info_RHS_vector_stage.time + info_linear_system_stage.time;
+	double memory = info_linear_system_stage.mallocIncrease;
+
+	FILE* outputFile = fopen("tmp/output.json", "w");
+	fprintf(outputFile, "{\n");
+	fprintf(outputFile, "  \"iter\": %d,\n", iter);
+	fprintf(outputFile, "  \"iter1\": %d,\n", iter1);
+	fprintf(outputFile, "  \"iter2\": %d,\n", iter2);
+	fprintf(outputFile, "  \"residual\": %e,\n", residu);
+	fprintf(outputFile, "  \"total-error\": %e,\n", error);
+	fprintf(outputFile, "  \"pressure-error\": %e,\n", error_u);
+	fprintf(outputFile, "  \"velocity-error\": %e,\n", error_p);
+	fprintf(outputFile, "  \"computation-time\": %e,\n", time);
+	fprintf(outputFile, "  \"memory-consumption\": %e\n", memory);
+	fprintf(outputFile, "}\n");
+	fclose(outputFile);
+	printf("testOutput saved in tmp/output.json\n");
 	
 //##### Cleaning of the code memory
 	MatDestroy(&A_input);
