@@ -77,6 +77,11 @@ if( SaddlePointLinearSolver_WITH_TESTS )
  add_test(NAME testSaddlePointLinearSolver_2x2_par  COMMAND "./testSaddlePointLinearSolver_2x2_par" "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/AssemblyMesh/Assembly_PolyMAC_1_vp.petsc" "-nU" "20344" "-nP" "9552")
  add_test(NAME testSaddlePointLinearSolver_2x2_par_instrumentation  COMMAND "./testSaddlePointLinearSolver_2x2_par_instrumentation" "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/AssemblyMesh/Assembly_PolyMAC_1_vp.petsc" "-nU" "20344" "-nP" "9552")
 
+if( SaddlePointLinearSolver_WITH_MPI )
+ add_test(NAME testSaddlePointLinearSolver_2x2_par_2procs                  COMMAND "${MPIEXEC}" "-n" "2" "./testSaddlePointLinearSolver_2x2_par" "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/AssemblyMesh/Assembly_PolyMAC_1_vp.petsc" "-nU" "20344" "-nP" "9552")
+ add_test(NAME testSaddlePointLinearSolver_2x2_par_instrumentation_2procs  COMMAND "${MPIEXEC}" "-n" "2" "./testSaddlePointLinearSolver_2x2_par_instrumentation" "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/AssemblyMesh/Assembly_PolyMAC_1_vp.petsc" "-nU" "20344" "-nP" "9552")
+endif( SaddlePointLinearSolver_WITH_MPI )
+
  install(TARGETS testSaddlePointLinearSolver_initial DESTINATION tests)
  install(TARGETS testSaddlePointLinearSolver_2x2_seq DESTINATION tests)
  install(TARGETS testSaddlePointLinearSolver_2x2_par DESTINATION tests)
