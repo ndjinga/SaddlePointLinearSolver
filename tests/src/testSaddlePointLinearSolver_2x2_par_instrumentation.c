@@ -5,7 +5,7 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 /*                                                                                               */
 /* Input  : - Matrix A_{input}    (system matrix, loaded from a file)                            */
 /*          - Vector b_{input}    (right hand side, made up for testing)                         */
-/* Output : - Vector X_{output}   (unknown vector, to be determined                              */
+/* Output : - Vector X_{output}   (unknown vector, to be determined)                              */
 /*                                                                                               */
 /* Auxilliary variables : - A_hat (transformed matrix)                                           */
 /*                        - X_hat (unknown of the transformed system)                            */
@@ -128,23 +128,26 @@ int main( int argc, char **args ){
 	PetscLogStagePush( RHS_vector_stage);//Instrumentation
 	
 	Vec b_input, X_hat, X_anal;
-	PetscScalar y[nb_pressure_lines];
-	PetscInt  i_p[nb_pressure_lines];
+	PetscScalar y_p[nb_pressure_lines], y_u[nb_velocity_lines];//To store the values
+	PetscInt    i_p[nb_pressure_lines], i_u[nb_velocity_lines];//To store the indices
 
 	PetscPrintf(PETSC_COMM_WORLD,"Creation of the RHS, exact and numerical solution vectors...\n");
-	MatCreateVecs(A_input,&b_input,&X_anal);// parallel distribution of vectors should optimise the computation A_input*X_anal=b_input
-	
-	//VecDuplicate(b_input,&X_anal);//X_anal will store the exact solution
-	VecDuplicate(X_anal ,&X_hat);// X_hat will store the numerical solution of the transformed system
+	MatCreateVecs( A_input,&b_input,&X_anal );// parallel distribution of vectors should optimise the computation A_input*X_anal=b_input
+	VecDuplicate(X_anal, &X_hat);// X_hat will store the numerical solution of the transformed system
 
 	VecSet(X_anal,0.0);
 
 	for (int i = min_pressure_lines;i<irow_max;i++){
-		y[i-n_u]=1.0/i;//valeur second membre à imposer ici
+		y_p[i-n_u]=1.0/i;//valeur second membre à imposer ici
 		i_p[i-n_u]=i;
 	}
+	for (int i = max_velocity_lines - nb_velocity_lines;i<max_velocity_lines;i++){
+		y_u[i-max_velocity_lines + nb_velocity_lines]=1.0/(i+1);//valeur second membre à imposer ici
+		i_u[i-max_velocity_lines + nb_velocity_lines]=i;
+	}
 	
-	VecSetValues(X_anal,nb_pressure_lines,i_p,y,INSERT_VALUES);
+	VecSetValues(X_anal,nb_pressure_lines,i_p,y_p,INSERT_VALUES);
+	VecSetValues(X_anal,nb_velocity_lines,i_u,y_u,INSERT_VALUES);
 	VecAssemblyBegin(X_anal );
 	VecAssemblyEnd(  X_anal );
 	VecNormalize( X_anal, NULL);
@@ -204,14 +207,11 @@ int main( int argc, char **args ){
 
 	// Creation of C_hat
 	MatMatMult(D,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&C_hat);//C_hat contains D*D_M_inv*G
-	MatAXPY(C_hat,1.0,C,SUBSET_NONZERO_PATTERN);//C_hat contains C + D*D_M_inv*G
+	MatAYPX( C_hat,-1,C,SUBSET_NONZERO_PATTERN);//C_hat contains C - D*D_M_inv*G
 
 	// Creation of G_hat
 	MatMatMult(M,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&G_hat);//G_hat contains M*D_M_inv*G
 	MatAYPX(G_hat,-1.0,G,UNKNOWN_NONZERO_PATTERN);//G_hat contains G - M*D_M_inv*G
-
-	// Creation of -D
-	MatScale(D,-1.0);
 
 	//Creation of global matrices using MatCreateNest
 	if( size==1 )
@@ -413,7 +413,7 @@ int main( int argc, char **args ){
 	VecNorm( X_output, NORM_2, &error);
 	PetscPrintf(PETSC_COMM_WORLD,"Total L2 Error : ||X_anal - X_num|| = %e, (remember ||X_anal||=1)\n", error);
 
-	PetscCheck( error < 1.e-5, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high\n");
+	PetscCheck( error < residu, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high\n");
 
 //##### Save the results in a JSON file
 	#include <unistd.h>
