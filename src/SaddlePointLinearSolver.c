@@ -56,31 +56,30 @@ void buildRHSVectorAndBhat( Mat A_input, PetscInt n_u, PetscInt n_p, Vec * X_ana
 		i_u[i]=i;
 	}
 	VecSetValues(*X_anal,n_p,i_p,y_p,INSERT_VALUES);
-	//VecSetValues(*X_anal,n_u,i_u,y_u,INSERT_VALUES);
+	VecSetValues(*X_anal,n_u,i_u,y_u,INSERT_VALUES);
 	VecAssemblyBegin(*X_anal);
 	VecAssemblyEnd(*X_anal);
 	VecNormalize( *X_anal, NULL);
 	MatMult( A_input, *X_anal, *b_input);
-	PetscPrintf(PETSC_COMM_WORLD,"... vectors created \n");	
-	//MatDestroy(&A_input);//Early destruction since A_input is a sequential matrix stored on processed 0
 
-	//Swap the pressure and velocity components + change the sign of the pressure components of b_input (this is due to the change in ordering of the variable in pierre-loic original script)
 	VecGetSubVector( *b_input, is_P, b_input_p);
 	VecGetSubVector( *b_input, is_U, b_input_u);
-	//VecScale(*b_input_p, -1);
-	X_array[0] = *b_input_p;
-	X_array[1] = *b_input_u;
-
+	X_array[0] = *b_input_u;
+	X_array[1] = *b_input_p;
 	//VecCreateNest( PETSC_COMM_WORLD, 2, NULL, X_array, &b_hat);//This may generate an error message : "Nest vector argument 3 not setup "
 	VecConcatenate(2, X_array, b_hat, NULL);
+
+	PetscPrintf(PETSC_COMM_WORLD,"... vectors created \n");	
 }
 
 //##### Application of the transformation A -> A_hat
-void transformSaddlePointMatrix1( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * G_hat, Mat * diag_2M, Vec * v, int n_u)
+void transformSaddlePointMatrix( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * G_hat, Mat * diag_2M, Vec * v, int n_u)
 {
+	PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix...\n");
+
 	Mat D_M_inv_G, Mat_array[4];
 
-	Mat_array[3]=M;//Bottom left block of A_hat
+	Mat_array[0]=M;//
 
 	//Extraction of the diagonal of M
 	MatCreateVecs(M,NULL,v);//v has the size of M
@@ -98,38 +97,39 @@ void transformSaddlePointMatrix1( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat *
 
 	// Creation of C_hat
 	MatMatMult(D,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,C_hat);//C_hat contains D*D_M_inv*G
-	MatAXPY(*C_hat,1.0,C,SUBSET_NONZERO_PATTERN);//C_hat contains C + D*D_M_inv*G
-	Mat_array[0]=*C_hat;//Top left block of A_hat
+	MatAYPX(*C_hat,-1.0,C,SUBSET_NONZERO_PATTERN);//C_hat contains C - D*D_M_inv*G
+	Mat_array[3]=*C_hat;//
 
 	// Creation of G_hat
 	MatMatMult(M,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,G_hat);//G_hat contains M*D_M_inv*G
 	MatAYPX(*G_hat,-1.0,G,UNKNOWN_NONZERO_PATTERN);//G_hat contains G - M*D_M_inv*G
-	Mat_array[2]=*G_hat;//Bottom left block of A_hat
+	Mat_array[1]=*G_hat;//
 
 	// Creation of -D
-	MatScale(D,-1.0);
-	Mat_array[1]=D;//Top right block of A_hat
+	Mat_array[2]=D;//
 
 	// Creation of A_hat = reordered A_input
 	MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,A_hat);
 
 	// Creation of Pmat
-	Mat_array[3]=*diag_2M;
+	Mat_array[0]=*diag_2M;
 	Mat_array[1]=NULL;//Cancel top right block
 	MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,Pmat);
+
+	PetscPrintf(PETSC_COMM_WORLD,"... matrix transformed \n");	
 
 	MatDestroy(&D_M_inv_G);
 }
 
 //##### Compute X from X_hat
-void getSolutionFromXhat(Mat G, Vec v, Vec X_hat, Vec * X_output, Vec * X_u, Vec * X_p, IS is_U_hat, IS is_P_hat)
+void getSolutionFromXhat(Mat G, Vec v, Vec X_hat, Vec * X_output, Vec * X_u, Vec * X_p, IS is_U, IS is_P)
 {
 	Vec X_hat_p;//Pressure components of the transformed unknown
 	Vec X_hat_u;//Velocity components of the transformed unknown
 	Vec X_array[2];
 	
-	VecGetSubVector( X_hat, is_P_hat, &X_hat_p);
-	VecGetSubVector( X_hat, is_U_hat, &X_hat_u);
+	VecGetSubVector( X_hat, is_P, &X_hat_p);
+	VecGetSubVector( X_hat, is_U, &X_hat_u);
 
 	VecDuplicate(X_hat_u,X_u);
 	VecDuplicate(X_hat_p,X_p);
@@ -140,7 +140,7 @@ void getSolutionFromXhat(Mat G, Vec v, Vec X_hat, Vec * X_output, Vec * X_u, Vec
 
 	X_array[0] = *X_u;
 	X_array[1] = *X_p;
-
+	
 	//VecCreateNest( PETSC_COMM_WORLD, 2, NULL, X_array, &X_output);//This generate an error message : "Nest vector argument 3 not setup "
 	VecConcatenate(2, X_array, X_output, NULL);
 }
@@ -148,7 +148,7 @@ void getSolutionFromXhat(Mat G, Vec v, Vec X_hat, Vec * X_output, Vec * X_u, Vec
 //##### Compute the error and check it is small
 double computeErrorAndCheck( Vec X_anal, Vec X_output, IS is_U, IS is_P, Vec X_u, Vec X_p)
 {	
-	Vec X_anal_p, X_anal_u;//Pressure and velocity components of the analitic solution
+	Vec X_anal_p, X_anal_u;//Pressure and velocity components of the analytic solution
 	double error, error_p, error_u;
 	
 	VecGetSubVector( X_anal, is_P, &X_anal_p);

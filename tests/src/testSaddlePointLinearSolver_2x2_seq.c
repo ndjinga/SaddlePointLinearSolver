@@ -73,19 +73,14 @@ int main( int argc, char **args ){
 	ISCreateStride(PETSC_COMM_WORLD, n_u,   0, 1, &is_U);
 	ISCreateStride(PETSC_COMM_WORLD, n_p, n_u, 1, &is_P);
 
-	splitPETScMatrix2x2( A_input, n_u, n_p, &M, &G, &D, &C, is_U, is_P);
+	splitPETScMatrix2x2(   A_input, n_u, n_p, &M, &G, &D, &C, is_U, is_P);
 
 	buildRHSVectorAndBhat( A_input, n_u, n_p, &X_anal, &b_input, &b_input_p, &b_input_u, &b_hat, is_U, is_P);
 
 	VecDuplicate(b_input,&X_hat);// X_hat will store the numerical solution of the transformed system
 
-	transformSaddlePointMatrix1(M,G,D,C,&A_hat,&Pmat, &C_hat, &G_hat, &diag_2M, &v, n_u);
+	transformSaddlePointMatrix(M,G,D,C,&A_hat,&Pmat, &C_hat, &G_hat, &diag_2M, &v, n_u);
 
-	// Finalisation of the preconditioner	
-	IS is_U_hat,is_P_hat;
-	
-	ISCreateStride(PETSC_COMM_WORLD, n_u, n_p, 1, &is_U_hat);
-	ISCreateStride(PETSC_COMM_WORLD, n_p,   0, 1, &is_P_hat);
 
 //##### Calling KSP solver and monitor convergence
 	KSP ksp, *subksp;
@@ -108,8 +103,8 @@ int main( int argc, char **args ){
 	PCSetType(pc,pc_type);
 	if( strcmp(pc_type , PCFIELDSPLIT)==0 ){
 		PCFieldSplitSetType(pc, pc_composite_type);
-		PCFieldSplitSetIS(pc, "0",is_P_hat);
-		PCFieldSplitSetIS(pc, "1",is_U_hat);
+		PCFieldSplitSetIS(pc, "0",is_P);
+		PCFieldSplitSetIS(pc, "1",is_U);
 	}
 	else{
 		PetscPrintf(PETSC_COMM_WORLD,"Using PCILU\n");
@@ -180,7 +175,7 @@ int main( int argc, char **args ){
 	Vec X_p;//Pressure components of the main unknown
 	Vec X_u;//Velocity components of the transformed unknown
 
-	getSolutionFromXhat(G, v, X_hat, &X_output, &X_u, &X_p, is_U_hat, is_P_hat);
+	getSolutionFromXhat(G, v, X_hat, &X_output, &X_u, &X_p, is_U, is_P);
 	
 	error = computeErrorAndCheck( X_anal, X_output, is_U, is_P, X_u, X_p);	
 	PetscCheck( error < residu, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high\n");
@@ -205,8 +200,6 @@ int main( int argc, char **args ){
 
 	ISDestroy(&is_U);
 	ISDestroy(&is_P);
-	ISDestroy(&is_U_hat);
-	ISDestroy(&is_P_hat);
 
 	KSPDestroy(&ksp);
 	PetscFree(subksp);
