@@ -125,7 +125,7 @@ int main( int argc, char **args ){
 
 	PCFieldSplitGetType(pc, &pc_composite_type);
 	KSPGetType(ksp,&ksp_type);
-		PCGetType(pc,&pc_type);
+	PCGetType(pc,&pc_type);
 	PCFieldSplitSchurGetSubKSP( pc, &nsplit, &subksp);
 	KSPGetType(subksp[0],&ksp_type0);
 	KSPGetType(subksp[1],&ksp_type1);
@@ -183,7 +183,7 @@ int main( int argc, char **args ){
 	getSolutionFromXhat(G, v, X_hat, &X_output, &X_u, &X_p, is_U_hat, is_P_hat);
 	
 	error = computeErrorAndCheck( X_anal, X_output, is_U, is_P, X_u, X_p);	
-	PetscCheck( error < 1.e-5, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high\n");
+	PetscCheck( error < residu, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high\n");
 	
 //##### Cleaning of the memory
 	MatDestroy(&A_input);
