@@ -363,11 +363,15 @@ int main( int argc, char **args ){
 	PCGetType( pc1, &pctype1);
 	PCGetType( pc2, &pctype2);
 	PetscFree(kspArray);
+	
+	PetscReal smax, smin;
+	KSPComputeExtremeSingularValues( ksp, &smax, &smin);
 
 	PetscPrintf(PETSC_COMM_WORLD, "\n############ : monitoring of the linear solver \n");
 	PetscPrintf(PETSC_COMM_WORLD, "Linear solver name: %s, preconditioner %s, %d iterations \n", type, pctype, iter);
 	PetscPrintf(PETSC_COMM_WORLD, "    sub solver 1 name : %s, preconditioner %s, %d iterations \n", type1, pctype1, iter1);
 	PetscPrintf(PETSC_COMM_WORLD, "    sub solver 2 name: %s, preconditioner %s, %d iterations \n", type2, pctype2, iter2);
+	PetscPrintf(PETSC_COMM_WORLD, "Estimate of the condition number of the preconditioned system, %f iterations \n", smax/smin);
 
 	switch(reason){
 		case 2:
