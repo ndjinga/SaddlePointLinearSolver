@@ -178,18 +178,6 @@ int main( int argc, char **args ){
 	MatEliminateZeros(diag_2M, PETSC_TRUE);
 	MatDiagonalSet(diag_2M, v,  INSERT_VALUES);
 	MatScale(diag_2M,2);//store 2*diagonal part of M
-	//Create the matrix 2*diag(M). Why not use MatCreateDiagonal ??? Problem of conversion from MATCONSTANTDIAGONAL to MATAIJ
-	//MatCreateConstantDiagonal(PETSC_COMM_WORLD, PETSC_DECIDE, PETSC_DECIDE, n_u, n_u, 2, &diag_2M);
-	//MatDiagonalScale(diag_2M, v, NULL);//store 2*diagonal part of M
-	/*  Problem of conversion from MATDIAGONAL to MATAIJ
-	MatCreateDiagonal(v,&diag_2M);
-	MatScale(diag_2M,2);//store 2*diagonal part of M
-	PetscPrintf(PETSC_COMM_WORLD,"Printing matrix diag_2M before conversion \n");
-	MatView( diag_2M, PETSC_VIEWER_STDOUT_WORLD);
-	MatConvert(diag_2M,  MATAIJ, MAT_INITIAL_MATRIX, &diag_2Maij);
-	PetscPrintf(PETSC_COMM_WORLD,"Printing matrix diag_2M after conversion \n");
-	MatView( diag_2Maij, PETSC_VIEWER_STDOUT_WORLD);
-	*/
 	VecReciprocal(v);
 	
 	// Creation of D_M_inv_G = D_M_inv*G
@@ -214,8 +202,6 @@ int main( int argc, char **args ){
 	MatAYPX(G_hat,-1.0,G,UNKNOWN_NONZERO_PATTERN);//G_hat contains G - M*D_M_inv*G
 
 	//Creation of global matrices using MatCreateNest
-	if( size==1 )
-	{
 	Mat_array[3]=C_hat;//Top left block of A_hat
 	Mat_array[2]=D;//Top right block of A_hat
 	Mat_array[1]=G_hat;//Bottom left block of A_hat
@@ -224,25 +210,7 @@ int main( int argc, char **args ){
 	MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,&A_hat);
 	// Creation of Pmat
 	Mat_array[0]=diag_2M;
-	Mat_array[1]=NULL;//Cancel top right block
 	MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,&Pmat);
-	}
-	else// bug ordonancement matnest en parallèle ?
-	{
-	Mat_array[0]=C_hat;//Top left block of A_hat
-	Mat_array[1]=D;//Top right block of A_hat
-	Mat_array[2]=G_hat;//Bottom left block of A_hat
-	Mat_array[3]=M;//Bottom left block of A_hat
-	//Creation IS pour que la creation du matnest se passe bien
-	IS IS_array[2];
-	IS_array[0]=is_P;
-	IS_array[1]=is_U;	
-	MatCreateNest(PETSC_COMM_WORLD,2,IS_array,2,IS_array,Mat_array,&A_hat);
-	// Creation of Pmat
-	Mat_array[3]=diag_2M;
-	Mat_array[2]=NULL;//Cancel top right block
-	MatCreateNest(PETSC_COMM_WORLD,2,IS_array,2,IS_array,Mat_array,&Pmat);
-	}
 
 //##### Call KSP solver and monitor convergence
 	double residu, abstol, rtol=1e-7, dtol;
@@ -276,27 +244,6 @@ int main( int argc, char **args ){
 	PCSetType( pc1, PCBJACOBI);
 	PCSetType( pc2, PCGAMG);
 	PCGAMGSetType( pc2, PCGAMGAGG);
-
-/*		
-		KSP * subKSP;
-		PC subpc;
-		int nlocal;//nb local blocs (should equal 1)
-		
-		//PCSetUp(pc2);
-		KSPSetUp(kspArray[1]);//to set the block Jacobi data structures (including creation of an internal KSP context for each block)
-		PCBJacobiGetSubKSP( pc2,&nlocal,NULL,&subKSP);
-		PetscPrintf(PETSC_COMM_SELF,"Number of local jacobi blocks : %d\n", nlocal);
-
-		KSPSetType(subKSP[0], KSPPREONLY);//local block solver is same as global
-		KSPGetPC(subKSP[0],&subpc);
-		PCSetType(subpc,PCLU);
-
-		//PetscOptionsSetValue(NULL,"-fieldsplit_0_ksp_type","gmres");	
-		//PetscOptionsSetValue(NULL,"-fieldsplit_0_pc_type","gamg");
-		//PetscOptionsSetValue(NULL,"-fieldsplit_0_pc_gamg_type","agg");
-		//PetscOptionsSetValue(NULL,"-sub_pc_type ","lu");
-		//PetscOptionsSetValue(NULL,"-sub_ksp_type ","preonly");	
-*/		
 
 	PCSetFromOptions(pc);
 	PCSetUp(pc);
@@ -370,8 +317,8 @@ int main( int argc, char **args ){
 	PetscPrintf(PETSC_COMM_WORLD, "\n############ : monitoring of the linear solver \n");
 	PetscPrintf(PETSC_COMM_WORLD, "Linear solver name: %s, preconditioner %s, %d iterations \n", type, pctype, iter);
 	PetscPrintf(PETSC_COMM_WORLD, "    sub solver 1 name : %s, preconditioner %s, %d iterations \n", type1, pctype1, iter1);
-	PetscPrintf(PETSC_COMM_WORLD, "    sub solver 2 name: %s, preconditioner %s, %d iterations \n", type2, pctype2, iter2);
-	PetscPrintf(PETSC_COMM_WORLD, "Estimate of the condition number of the preconditioned system, %f iterations \n", smax/smin);
+	PetscPrintf(PETSC_COMM_WORLD, "    sub solver 2 name : %s, preconditioner %s, %d iterations \n", type2, pctype2, iter2);
+	PetscPrintf(PETSC_COMM_WORLD, "\n Estimate of the condition number of the preconditioned system %f \n \n", smax/smin);
 
 	switch(reason){
 		case 2:
@@ -415,7 +362,7 @@ int main( int argc, char **args ){
 
 	VecAXPY(X_output, -1, X_anal);
 	VecNorm( X_output, NORM_2, &error);
-	PetscPrintf(PETSC_COMM_WORLD,"Total L2 Error : ||X_anal - X_num|| = %e, (remember ||X_anal||=1)\n", error);
+	PetscPrintf(PETSC_COMM_WORLD,"Total L2 Error : ||X_anal - X_num|| = %e, (remember ||X_anal||=1)\n\n", error);
 
 	PetscCheck( error < residu, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high\n");
 
