@@ -7,16 +7,15 @@ SET_SOURCE_FILES_PROPERTIES(SaddlePointLinearSolver.i PROPERTIES SWIG_DEFINITION
 INCLUDE_DIRECTORIES(
   ${Python_INCLUDE_DIRS}
   ${PETSC_INCLUDES}	
-  ${MY_HEADERS}								    #
+  ${PROJECT_SOURCE_DIR}/src							    #
 )
 
-if(     EXISTS ${PETSC4PY_ROOT_DIR}/petsc4py/include/petsc4py/petsc4py.i)
-  INCLUDE_DIRECTORIES( ${PETSC4PY_ROOT_DIR}/petsc4py/include
-                       ${PETSC4PY_ROOT_DIR}/petsc4py/include/petsc4py )
-elseif (EXISTS ${PETSC4PY_ROOT_DIR}/include/petsc4py/petsc4py.i )
-  INCLUDE_DIRECTORIES( ${PETSC4PY_ROOT_DIR}/include
-                       ${PETSC4PY_ROOT_DIR}/include/petsc4py )
-endif(  EXISTS ${PETSC4PY_ROOT_DIR}/petsc4py/include/petsc4py/petsc4py.i)
+if(     EXISTS ${PETSC_DIR}/${PETSC_ARCH}/lib/petsc4py/include/petsc4py/petsc4py.i)
+  INCLUDE_DIRECTORIES( ${PETSC_DIR}/${PETSC_ARCH}/lib/petsc4py/include
+                       ${PETSC_DIR}/${PETSC_ARCH}/lib/petsc4py/include/petsc4py )
+elseif (EXISTS ${PETSC_DIR}/${PETSC_ARCH}/lib/petsc4py/include/petsc4py/petsc4py.i )
+  message( ERROR "Could not find petsc4py. Cannot buile python module")
+endif(  EXISTS ${PETSC_DIR}/${PETSC_ARCH}/lib/petsc4py/include/petsc4py/petsc4py.i)
 
 IF   (${CMAKE_VERSION} VERSION_LESS "3.8.0") 
   SWIG_ADD_MODULE(SaddlePointLinearSolver python SaddlePointLinearSolver.i)

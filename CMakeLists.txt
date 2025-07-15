@@ -30,12 +30,6 @@ install(TARGETS SaddlePointLinearSolverLib DESTINATION lib)
 
 find_package (PETSc 3.4 REQUIRED)
 
-if( SaddlePointLinearSolver_WITH_PYTHON )
-  message(STATUS "SaddlePointLinearSolverm requested with PYTHON library. Searching PYTHON library.")
-  find_package(Python ${PYTHON2OR3} REQUIRED COMPONENTS Interpreter Development )
-  SET(PYTHON_EXECUTABLE ${Python_EXECUTABLE})
-endif( SaddlePointLinearSolver_WITH_PYTHON )
-
 if( SaddlePointLinearSolver_WITH_MPI )
   message(STATUS "SaddlePointLinearSolverm requested with MPI library. Searching MPI library.")
   if   ( NOT MPI_HOME)
@@ -43,6 +37,14 @@ if( SaddlePointLinearSolver_WITH_MPI )
   endif( NOT MPI_HOME)
   find_package(MPI REQUIRED)
 endif( SaddlePointLinearSolver_WITH_MPI )
+
+if( SaddlePointLinearSolver_WITH_PYTHON )
+  message(STATUS "SaddlePointLinearSolverm requested with PYTHON library. Searching PYTHON library.")
+  find_package(Python ${PYTHON2OR3} REQUIRED COMPONENTS Interpreter Development )
+  SET(PYTHON_EXECUTABLE ${Python_EXECUTABLE})
+  find_package (SWIG 3.0 REQUIRED)
+  add_subdirectory(swig)
+endif( SaddlePointLinearSolver_WITH_PYTHON )
 
 if( SaddlePointLinearSolver_WITH_TESTS )
  enable_testing ()
