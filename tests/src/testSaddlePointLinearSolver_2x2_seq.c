@@ -20,13 +20,13 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 /*                        A     = *       *                                                      */
 /*                                 *D   C*                                                       */
 /*                                                                                               */
-/*                                 *C_hat  -D*                                                   */
-/*                        A_hat = *           *                                                  */
-/*                                 *G_hat   M*                                                   */
+/*                                 *M     G_hat*             G_hat=G - M*D_M_inv*G                */
+/*                        A_hat = *             *                                                 */
+/*                                 *D     C_hat*             C_hat=C - D*D_M_inv*G                */
 /*                                                                                               */
-/*                                 *C_hat        0   *                                           */
+/*                                 *2 diag(M)     0  *                                           */
 /*                        Pmat  = *                   *                                          */
-/*                                 *G_hat   2 diag(M)*                                           */
+/*                                 *D          C_hat *                                           */
 /*                                                                                               */
 /*************************************************************************************************/
 
