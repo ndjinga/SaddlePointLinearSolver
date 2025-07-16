@@ -1,7 +1,9 @@
 import argparse
 from pathlib import Path
 import pandas as pd
-from loguru import logger
+from custom_logger import get_logger
+
+logger = get_logger(__name__)
 
 def parse_n_proc(n_proc_str):
     n_proc_str = n_proc_str.strip()

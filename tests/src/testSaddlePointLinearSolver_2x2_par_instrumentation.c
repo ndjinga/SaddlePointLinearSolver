@@ -364,8 +364,6 @@ int main( int argc, char **args ){
 	VecNorm( X_output, NORM_2, &error);
 	PetscPrintf(PETSC_COMM_WORLD,"Total L2 Error : ||X_anal - X_num|| = %e, (remember ||X_anal||=1)\n\n", error);
 
-	PetscCheck( error < residu, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high\n");
-
 //##### Save the results in a JSON file
 	#include <unistd.h>
 	#include <fcntl.h>
@@ -381,6 +379,7 @@ int main( int argc, char **args ){
 
 	double total_time = info_load_matrix_stage.time + info_split_matrix_stage.time + info_RHS_vector_stage.time + info_linear_system_stage.time;
 	double memory = info_linear_system_stage.mallocIncrease;
+	double condition_number = smax/smin;
 
 	FILE* outputFile = fopen("tmp/output.json", "w");
 	fprintf(outputFile, "{\n");
@@ -396,10 +395,14 @@ int main( int argc, char **args ){
 	fprintf(outputFile, "  \"rhs-build-time\": %e,\n", info_RHS_vector_stage.time);
 	fprintf(outputFile, "  \"solve-time\": %e,\n", info_linear_system_stage.time);
 	fprintf(outputFile, "  \"total-time\": %e,\n", total_time);
-	fprintf(outputFile, "  \"memory-consumption\": %e\n", memory);
+	fprintf(outputFile, "  \"memory-consumption\": %e,\n", memory);
+	fprintf(outputFile, "  \"condition-number\": %e\n", condition_number);
 	fprintf(outputFile, "}\n");
 	fclose(outputFile);
 	printf("testOutput saved in tmp/output.json\n");
+
+
+	PetscCheck( error < residu, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high\n");
 	
 //##### Cleaning of the code memory
 	MatDestroy(&A_input);

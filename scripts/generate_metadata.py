@@ -3,7 +3,9 @@ from pathlib import Path
 import pandas as pd
 import json
 import shutil
-from loguru import logger
+from custom_logger import get_logger
+
+logger = get_logger(__name__)
 
 def generate_metadata():
     parser = argparse.ArgumentParser(description="Generate metadata for simulation tests.")

@@ -2,14 +2,17 @@ import argparse
 import csv
 import json
 from pathlib import Path
-from loguru import logger
+from custom_logger import get_logger
+
+logger = get_logger(__name__)
 
 REQUIRED_COLUMNS = [
     "test-id", "executable-name", "matrix-name", "matrix-type",
     "n-proc", "matrix-size", "nU", "nP", "iter", "iter1", "iter2",
     "residual", "total-error", "pressure-error", "velocity-error",
     "matrix-load-time", "matrix-split-time", "rhs-build-time",
-    "solve-time", "total-time", "memory-consumption"
+    "solve-time", "total-time", "memory-consumption",
+    "condition-number"
 ]
 
 def parse_args():
