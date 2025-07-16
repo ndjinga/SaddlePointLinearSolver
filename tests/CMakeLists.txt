@@ -58,3 +58,5 @@ add_custom_target(clean-results
   COMMAND rm -rf ${TEST_RESULTS_DIR}/*
   COMMENT "Clean results."
 )
+
+add_subdirectory(python)
