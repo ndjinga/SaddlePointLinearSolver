@@ -364,8 +364,6 @@ int main( int argc, char **args ){
 	VecNorm( X_output, NORM_2, &error);
 	PetscPrintf(PETSC_COMM_WORLD,"Total L2 Error : ||X_anal - X_num|| = %e, (remember ||X_anal||=1)\n\n", error);
 
-	PetscCheck( error < residu, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high\n");
-
 //##### Save the results in a JSON file
 	#include <unistd.h>
 	#include <fcntl.h>
@@ -400,6 +398,9 @@ int main( int argc, char **args ){
 	fprintf(outputFile, "}\n");
 	fclose(outputFile);
 	printf("testOutput saved in tmp/output.json\n");
+
+
+	PetscCheck( error < residu, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high\n");
 	
 //##### Cleaning of the code memory
 	MatDestroy(&A_input);
