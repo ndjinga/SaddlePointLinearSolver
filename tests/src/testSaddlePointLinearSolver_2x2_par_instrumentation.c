@@ -379,6 +379,7 @@ int main( int argc, char **args ){
 
 	double total_time = info_load_matrix_stage.time + info_split_matrix_stage.time + info_RHS_vector_stage.time + info_linear_system_stage.time;
 	double memory = info_linear_system_stage.mallocIncrease;
+	double condition_number = smax/smin;
 
 	FILE* outputFile = fopen("tmp/output.json", "w");
 	fprintf(outputFile, "{\n");
@@ -394,7 +395,8 @@ int main( int argc, char **args ){
 	fprintf(outputFile, "  \"rhs-build-time\": %e,\n", info_RHS_vector_stage.time);
 	fprintf(outputFile, "  \"solve-time\": %e,\n", info_linear_system_stage.time);
 	fprintf(outputFile, "  \"total-time\": %e,\n", total_time);
-	fprintf(outputFile, "  \"memory-consumption\": %e\n", memory);
+	fprintf(outputFile, "  \"memory-consumption\": %e,\n", memory);
+	fprintf(outputFile, "  \"condition-number\": %e\n", condition_number);
 	fprintf(outputFile, "}\n");
 	fclose(outputFile);
 	printf("testOutput saved in tmp/output.json\n");
