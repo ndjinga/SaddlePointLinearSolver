@@ -2,7 +2,9 @@ import argparse
 import csv
 import json
 from pathlib import Path
-from loguru import logger
+from custom_logger import get_logger
+
+logger = get_logger(__name__)
 
 REQUIRED_COLUMNS = [
     "test-id", "executable-name", "matrix-name", "matrix-type",

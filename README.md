@@ -92,6 +92,5 @@ cmake -DDATA_DIR=/custom/data/path \
 
 - Ensure that Python3 is installed and available in your environment.
 - The following Python packages are required:
-  - `loguru`
   - `pandas`
 - The `CMakeLists.txt` file in the `tests/` directory defines the custom targets used for testing.
