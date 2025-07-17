@@ -380,6 +380,8 @@ int main( int argc, char **args ){
 	double total_time = info_load_matrix_stage.time + info_split_matrix_stage.time + info_RHS_vector_stage.time + info_linear_system_stage.time;
 	double memory = info_linear_system_stage.mallocIncrease;
 	double condition_number = smax/smin;
+	double residual_error_ratio = residu/error;
+	int factor = 100000;
 
 	FILE* outputFile = fopen("tmp/output.json", "w");
 	fprintf(outputFile, "{\n");
@@ -396,14 +398,17 @@ int main( int argc, char **args ){
 	fprintf(outputFile, "  \"solve-time\": %e,\n", info_linear_system_stage.time);
 	fprintf(outputFile, "  \"total-time\": %e,\n", total_time);
 	fprintf(outputFile, "  \"memory-consumption\": %e,\n", memory);
-	fprintf(outputFile, "  \"condition-number\": %e\n", condition_number);
+	fprintf(outputFile, "  \"condition-number\": %e,\n", condition_number);
+	fprintf(outputFile, "  \"residual-error-ratio\": %e,\n", residual_error_ratio);
+	fprintf(outputFile, "  \"status\": \"%s\"\n", error < factor*residu ? "Pass" : "Fail");
+
 	fprintf(outputFile, "}\n");
 	fclose(outputFile);
 	printf("testOutput saved in tmp/output.json\n");
 
 
-	PetscCheck( error < 100*residu, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high compared to residual (e>100*r) : e=%e, r=%e\n", error, residu);
-	
+	PetscCheck( error < factor*residu, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high compared to residual (e>100*r) : e=%e, r=%e\n", error, residu);
+
 //##### Cleaning of the code memory
 	MatDestroy(&A_input);
 	MatDestroy(&M);

@@ -12,7 +12,7 @@ REQUIRED_COLUMNS = [
     "residual", "total-error", "pressure-error", "velocity-error",
     "matrix-load-time", "matrix-split-time", "rhs-build-time",
     "solve-time", "total-time", "memory-consumption",
-    "condition-number"
+    "condition-number", "residual-error-ratio", "status"
 ]
 
 def parse_args():
