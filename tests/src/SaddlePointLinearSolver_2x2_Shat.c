@@ -332,7 +332,7 @@ int main( int argc, char **args ){
 	VecNorm( X_output, NORM_2, &error);
 	PetscPrintf(PETSC_COMM_WORLD,"L2 Error : ||X_anal - X_num|| = %e, (remember ||X_anal||=1)\n", error);
 
-	PetscCheck( error < 1.e-5, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high\n");
+	PetscCheck( error < 100*residu, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high compared to residual (e>100*r) : e=%e, r=%e\n", error, residu);
 	
 //##### Cleaning of the memory
 	MatDestroy(&A);

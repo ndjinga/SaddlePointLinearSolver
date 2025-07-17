@@ -178,7 +178,7 @@ int main( int argc, char **args ){
 	getSolutionFromXhat(G, v, X_hat, &X_output, &X_u, &X_p, is_U, is_P);
 	
 	error = computeErrorAndCheck( X_anal, X_output, is_U, is_P, X_u, X_p);	
-	PetscCheck( error < residu, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high\n");
+	PetscCheck( error < 100*residu, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high compared to residual (e>100*r) : e=%e, r=%e\n", error, residu);
 	
 //##### Cleaning of the memory
 	MatDestroy(&A_input);

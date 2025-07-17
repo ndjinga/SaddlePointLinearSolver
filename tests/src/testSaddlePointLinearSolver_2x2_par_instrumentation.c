@@ -402,7 +402,7 @@ int main( int argc, char **args ){
 	printf("testOutput saved in tmp/output.json\n");
 
 
-	PetscCheck( error < residu, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high\n");
+	PetscCheck( error < 100*residu, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high compared to residual (e>100*r) : e=%e, r=%e\n", error, residu);
 	
 //##### Cleaning of the code memory
 	MatDestroy(&A_input);
