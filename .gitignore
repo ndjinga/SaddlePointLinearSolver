@@ -10,3 +10,8 @@ tests/tables/*
 !tests/tables/.gitkeep
 
 tests/generated_tests.cmake
+
+tests/notebook/figures
+
+__pycache__
+.ipynb_checkpoints
