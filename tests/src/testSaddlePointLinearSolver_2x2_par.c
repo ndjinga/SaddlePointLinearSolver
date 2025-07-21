@@ -31,6 +31,7 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 
 #include <petscis.h>
 #include <petscksp.h>
+#include <math.h>
 
 int main( int argc, char **args ){
 	PetscInitialize(&argc,&args, (char*)0,help);
@@ -79,11 +80,12 @@ int main( int argc, char **args ){
 	PetscInt max_velocity_lines = irow_max >= n_u ? n_u : irow_max;//min(irow_max, n_u)
 	PetscInt nb_pressure_lines = irow_max >= n_u ? irow_max - min_pressure_lines : 0;
 	PetscInt nb_velocity_lines = irow_min <= n_u ? max_velocity_lines - irow_min : 0;
+	PetscInt nb_local_lines = irow_max - irow_min; 
 
 	PetscCheck( nrows == ncolumns, PETSC_COMM_WORLD, ierr, "Matrix is not square !!!\n");
 	PetscCheck( n == ncolumns, PETSC_COMM_WORLD, ierr, "Inconsistent data : the matrix has %d lines but only %d velocity lines and %d pressure lines declared\n", ncolumns, n_u,n_p);
 	PetscPrintf(PETSC_COMM_WORLD,"The matrix has %d lines : %d velocity lines and %d pressure lines\n", n, n_u,n_p);
-	PetscPrintf(PETSC_COMM_SELF,"Process %d local rows : irow_min = %d, irow_max = %d, min_pressure_lines = %d, max_velocity_lines = %d, nb_pressure_lines = %d, nb_velocity_lines = %d \n", rank, irow_min, irow_max, min_pressure_lines, max_velocity_lines, nb_pressure_lines, nb_velocity_lines);
+	PetscPrintf(PETSC_COMM_SELF,"Process %d has %d local rows : irow_min = %d, irow_max = %d, min_pressure_lines = %d, max_velocity_lines = %d, nb_pressure_lines = %d, nb_velocity_lines = %d \n", rank, nb_local_lines, irow_min, irow_max, min_pressure_lines, max_velocity_lines, nb_pressure_lines, nb_velocity_lines);
 	
 	PetscPrintf(PETSC_COMM_WORLD,"Extraction of the 4 blocks \n M G\n D C\n");
 	ISCreateStride(PETSC_COMM_WORLD, nb_velocity_lines, max_velocity_lines - nb_velocity_lines, 1, &is_U);
@@ -95,39 +97,41 @@ int main( int argc, char **args ){
 	MatCreateSubMatrix(A_input,is_P, is_P,MAT_INITIAL_MATRIX,&C);
 	PetscPrintf(PETSC_COMM_WORLD,"... end of extraction\n");
 
+	MatGetOwnershipRange( M, &irow_min, &irow_max);
+	PetscPrintf(PETSC_COMM_SELF,"Matrix M, Process %d local rows : irow_min = %d, irow_max = %d \n", rank, irow_min, irow_max);
+	MatGetOwnershipRange( G, &irow_min, &irow_max);
+	PetscPrintf(PETSC_COMM_SELF,"Matrix G, Process %d local rows : irow_min = %d, irow_max = %d \n", rank, irow_min, irow_max);
+	MatGetOwnershipRange( D, &irow_min, &irow_max);
+	PetscPrintf(PETSC_COMM_SELF,"Matrix D, Process %d local rows : irow_min = %d, irow_max = %d \n", rank, irow_min, irow_max);
+	MatGetOwnershipRange( C, &irow_min, &irow_max);
+	PetscPrintf(PETSC_COMM_SELF,"Matrix C, Process %d local rows : irow_min = %d, irow_max = %d \n", rank, irow_min, irow_max);
+
 	//#Display some informations about the four blocs
 	int size1, size2;
 	MatGetSize(M, &size1,&size2);
 	PetscPrintf(PETSC_COMM_WORLD,"Size of M : %d,%d\n", size1,size2);
-	MatGetSize(C, &size1,&size2);
-	PetscPrintf(PETSC_COMM_WORLD,"Size of C : %d,%d\n", size1,size2);
 	MatGetSize(G, &size1,&size2);
 	PetscPrintf(PETSC_COMM_WORLD,"Size of G : %d,%d\n", size1,size2);
 	MatGetSize(D, &size1,&size2);
 	PetscPrintf(PETSC_COMM_WORLD,"Size of D : %d,%d\n", size1,size2);
+	MatGetSize(C, &size1,&size2);
+	PetscPrintf(PETSC_COMM_WORLD,"Size of C : %d,%d\n", size1,size2);
 
 //##### Definition of the right hand side to test the preconditioner
 	Vec b_input, X_hat, X_anal;
-	PetscScalar y_p[nb_pressure_lines], y_u[nb_velocity_lines];//To store the values
-	PetscInt    i_p[nb_pressure_lines], i_u[nb_velocity_lines];//To store the indices
+	PetscScalar values[nb_local_lines];//To store the values
+	PetscInt    indices[nb_local_lines];//To store the indices
 
 	PetscPrintf(PETSC_COMM_WORLD,"Creation of the RHS, exact and numerical solution vectors...\n");
 	MatCreateVecs( A_input,&b_input,&X_anal );// parallel distribution of vectors should optimise the computation A_input*X_anal=b_input
 	VecDuplicate(X_anal, &X_hat);// X_hat will store the numerical solution of the transformed system
 
-	VecSet(X_anal,0.0);
-
-	for (int i = min_pressure_lines;i<irow_max;i++){
-		y_p[i-n_u]=1.0/i;//valeur second membre à imposer ici
-		i_p[i-n_u]=i;
-	}
-	for (int i = max_velocity_lines - nb_velocity_lines;i<max_velocity_lines;i++){
-		y_u[i-max_velocity_lines + nb_velocity_lines]=1.0/(i+1);//valeur second membre à imposer ici
-		i_u[i-max_velocity_lines + nb_velocity_lines]=i;
+	for (int i = 0; i<nb_local_lines; i++){
+		values[i] = 1.0/(i+irow_min+1);//valeur second membre à imposer ici
+		indices[i]=i+irow_min;
 	}
 	
-	VecSetValues(X_anal,nb_pressure_lines,i_p,y_p,INSERT_VALUES);
-	VecSetValues(X_anal,nb_velocity_lines,i_u,y_u,INSERT_VALUES);
+	VecSetValues(X_anal,nb_local_lines,indices,values,INSERT_VALUES);
 	VecAssemblyBegin(X_anal );
 	VecAssemblyEnd(  X_anal );
 	VecNormalize( X_anal, NULL);
@@ -259,10 +263,10 @@ int main( int argc, char **args ){
 
 	switch(reason){
 		case 2:
-		    PetscPrintf(PETSC_COMM_WORLD, "Residual 2-norm < rtol*||RHS||_2 with rtol = %e, final residual = %e\n", rtol, residu);
+		    PetscPrintf(PETSC_COMM_WORLD, "Residual 2-norm < rtol*||RHS||_2 with rtol = %e, final residual = %e\n\n", rtol, residu);
 		    break;
 		case 3:
-		    PetscPrintf(PETSC_COMM_WORLD, "Residual 2-norm < atol with atol = %e, final residual = %e\n", abstol, residu);
+		    PetscPrintf(PETSC_COMM_WORLD, "Residual 2-norm < atol with atol = %e, final residual = %e\n\n", abstol, residu);
 		    break;
 		case -4:
 		    PetscPrintf(PETSC_COMM_WORLD, "!!!!!!! Residual 2-norm > dtol*||RHS||_2 with dtol = %e, final residual = %e !!!!!!! \n", dtol, residu);
@@ -289,6 +293,7 @@ int main( int argc, char **args ){
 	Vec X_p;//Pressure components of the main unknown
 	Vec X_u;//Velocity components of the transformed unknown
 	Vec X_output, X_output_array[2];
+	IS IS_array[2];
 	
 	VecGetSubVector( X_hat, is_P, &X_hat_p);
 	VecGetSubVector( X_hat, is_U, &X_hat_u);
@@ -302,9 +307,11 @@ int main( int argc, char **args ){
 
 	X_output_array[0] = X_u;
 	X_output_array[1] = X_p;
+	IS_array[0] = is_U;
+	IS_array[1] = is_P;
 
-	//VecCreateNest( PETSC_COMM_WORLD, 2, NULL, X_array, &X_output);//This generate an error message : "Nest vector argument 3 not setup "
-	VecConcatenate(2, X_output_array, &X_output, NULL);
+	VecCreateNest( PETSC_COMM_WORLD, 2, IS_array, X_output_array, &X_output);//This generate an error message : "Nest vector argument 3 not setup "
+	//VecConcatenate(2, X_output_array, &X_output, NULL);
 
 //##### Compute the error and check it is small
 	Vec X_anal_p, X_anal_u;//Pressure and velocity components of the analytic solution
@@ -320,8 +327,9 @@ int main( int argc, char **args ){
 	VecNorm(  X_u, NORM_2, &error_u);
 	PetscPrintf(PETSC_COMM_WORLD,"L2 Error on velocity u : ||X_anal_u - X_num_u|| = %e \n", error_u);
 
-	VecAXPY(X_output, -1, X_anal);
-	VecNorm( X_output, NORM_2, &error);
+//	VecAXPY(X_output, -1, X_anal);
+//	VecNorm( X_output, NORM_2, &error);
+	error=sqrt(error_u*error_u+error_p*error_p);
 	PetscPrintf(PETSC_COMM_WORLD,"L2 total Error : ||X_anal - X_num|| = %e, (remember ||X_anal||=1)\n\n", error);
 
 	PetscCheck( error < 100*residu, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high compared to residual (e>100*r) : e=%e, r=%e\n", error, residu);
