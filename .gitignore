@@ -12,6 +12,7 @@ tests/tables/*
 tests/generated_tests.cmake
 
 tests/notebook/figures
+tests/notebook/performance_analysis.pdf
 
 __pycache__
 .ipynb_checkpoints

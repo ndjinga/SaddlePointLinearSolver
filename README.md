@@ -97,7 +97,7 @@ cmake -DDATA_DIR=/custom/data/path \
 
 ## Notebook
 
-To execute the performance analysis notebook and generate figures, use the following command:
+To execute the performance analysis notebook, generate figures, and export the notebook as a PDF, use the following command:
 
 ```bash
 cmake --build . --target notebook

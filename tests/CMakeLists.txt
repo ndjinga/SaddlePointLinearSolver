@@ -62,6 +62,7 @@ add_custom_target(clean-results
 # Custom target to execute a notebook and generate figures
 add_custom_target(notebook
   COMMAND jupyter nbconvert --to notebook --execute --inplace performance_analysis.ipynb
+  COMMAND jupyter nbconvert --to pdf performance_analysis.ipynb --output performance_analysis.pdf --no-input
   COMMENT "Generate figures."
   COMMAND ${CMAKE_COMMAND} -E echo "The generated figures can be found in the tests/notebook/figures directory."
   WORKING_DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR}/notebook
