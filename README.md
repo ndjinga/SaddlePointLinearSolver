@@ -93,14 +93,29 @@ cmake -DDATA_DIR=/custom/data/path \
 - Ensure that Python3 is installed and available in your environment.
 - The following Python packages are required:
   - `pandas`
+  - `matplotlib`
+  - `numpy`
 - The `CMakeLists.txt` file in the `tests/` directory defines the custom targets used for testing.
 
-## Notebook
+## Notebook & Figures
 
-To execute the performance analysis notebook, generate figures, and export the notebook as a PDF, use the following command:
+To execute the performance analysis notebook and export it as a PDF, use:
 
 ```bash
 cmake --build . --target notebook
 ```
 
-This will run the notebook located at [tests/notebook/performance_analysis.ipynb](tests/notebook/performance_analysis.ipynb) and save the generated figures in the `tests/notebook/figures` directory.
+- The notebook is located at [`notebook/performance_analysis.ipynb`](notebook/performance_analysis.ipynb).
+- The generated PDF will have the **same name as the notebook** (`performance_analysis.pdf`) and will be saved in the `notebook/` directory.
+
+To generate figures using the dedicated Python script, use:
+
+```bash
+cmake --build . --target generate-figures
+```
+
+- The script is [`notebook/generate_figures.py`](notebook/generate_figures.py).
+- Figures are saved in the `notebook/figures` directory.
+
+**Note:**  
+The **path to the CSV data file** must be set in [`notebook/plot_utils.py`](notebook/plot_utils.py).
