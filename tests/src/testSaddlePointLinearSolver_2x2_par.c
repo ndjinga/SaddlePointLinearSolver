@@ -220,9 +220,8 @@ int main( int argc, char **args ){
 	KSPSetType( kspArray[1], KSPGMRES);
 	KSPGetPC(kspArray[0], &pc1);
 	KSPGetPC(kspArray[1], &pc2);
-	PCSetType( pc1, PCBJACOBI);
+	PCSetType( pc1, PCJACOBI);
 	PCSetType( pc2, PCGAMG);
-	PCGAMGSetType( pc2, PCGAMGAGG);
 
 	PCSetFromOptions(pc);
 	PCSetUp(pc);
