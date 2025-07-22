@@ -35,8 +35,9 @@ Mat splitPETScMatrix2x2(Mat A_input, PetscInt n_u, PetscInt n_p, Mat * M, Mat * 
 void buildRHSVectorAndBhat( Mat A_input, PetscInt n_u, PetscInt n_p, Vec * X_anal, Vec * b_input, Vec * b_input_p, Vec * b_input_u, Vec * b_hat, IS is_U, IS is_P)
 {
 	Vec X_array[2];
-	PetscScalar y_p[n_p], y_u[n_u];
-	PetscInt    i_p[n_p], i_u[n_u];
+	IS IS_array[2];
+	PetscScalar values[n_u+n_p];//To store the values
+	PetscInt    indices[n_u+n_p];//To store the indices
 
 	PetscPrintf(PETSC_COMM_WORLD,"Creation of the RHS, exact and numerical solution vectors...\n");
 	VecCreate(PETSC_COMM_WORLD,b_input);
@@ -46,17 +47,12 @@ void buildRHSVectorAndBhat( Mat A_input, PetscInt n_u, PetscInt n_p, Vec * X_ana
 	VecDuplicate(*b_input,X_anal);//X_anal will store the exact solution
 	VecDuplicate(*b_input,b_hat);// b_hat will store the right hand side of the transformed system
 	
-	VecSet(*X_anal,0.0);
-	for (int i = n_u;i<n_u+n_p;i++){
-		y_p[i-n_u]=1.0/i;
-		i_p[i-n_u]=i;
+	for (int i = 0; i<n_u+n_p; i++){
+		values[i] = 1.0/(i+1);//valeur second membre à imposer ici
+		indices[i]=i;
 	}
-	for (int i = 0;i<n_u;i++){
-		y_u[i]=1.0/(i+1);
-		i_u[i]=i;
-	}
-	VecSetValues(*X_anal,n_p,i_p,y_p,INSERT_VALUES);
-	VecSetValues(*X_anal,n_u,i_u,y_u,INSERT_VALUES);
+	
+	VecSetValues(*X_anal,n_u+n_p,indices,values,INSERT_VALUES);
 	VecAssemblyBegin(*X_anal);
 	VecAssemblyEnd(*X_anal);
 	VecNormalize( *X_anal, NULL);
@@ -66,8 +62,12 @@ void buildRHSVectorAndBhat( Mat A_input, PetscInt n_u, PetscInt n_p, Vec * X_ana
 	VecGetSubVector( *b_input, is_U, b_input_u);
 	X_array[0] = *b_input_u;
 	X_array[1] = *b_input_p;
+	IS_array[0] = is_U;
+	IS_array[1] = is_P;
+
+	VecCreateNest( PETSC_COMM_WORLD, 2, IS_array, X_array, b_hat);//This generate an error message : "Nest vector argument 3 not setup "
 	//VecCreateNest( PETSC_COMM_WORLD, 2, NULL, X_array, &b_hat);//This may generate an error message : "Nest vector argument 3 not setup "
-	VecConcatenate(2, X_array, b_hat, NULL);
+	//VecConcatenate(2, X_array, b_hat, NULL);
 
 	PetscPrintf(PETSC_COMM_WORLD,"... vectors created \n");	
 }
