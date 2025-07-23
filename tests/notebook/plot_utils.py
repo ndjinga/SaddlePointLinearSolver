@@ -27,8 +27,10 @@ def plot_metric_for_types(
     show_figures=False,
     save_figures=False
 ):
+    plt.clf()
+    min_proc =  df['n-proc'].min()
     for mtype in mesh_types:
-        sub = df[(df['matrix-type'] == mtype) & (df['n-proc'] == 1)]
+        sub = df[(df['matrix-type'] == mtype) & (df['n-proc'] == min_proc)]
         if apply_mean:
             grouped = sub.groupby('matrix-size')[metric].mean()
             plt.scatter(sub['matrix-size'], sub['total-time'], marker='.', color=None)
@@ -48,9 +50,10 @@ def plot_metric_for_types(
     plt.legend(title="Mesh type", bbox_to_anchor=(1.05, 1), loc='upper left', borderaxespad=0.)
     plt.grid(True, which="both", ls="--")
     if save_figures:
-        plt.savefig(f'{subfolder}/{safe_filename(title)}.png')
+        plt.savefig(f'{subfolder}/{safe_filename(title)}.png', bbox_inches='tight')
     if show_figures:
         plt.show()
+    plt.clf()
 
 
 
