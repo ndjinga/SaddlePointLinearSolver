@@ -25,6 +25,7 @@ def generate_tests():
     parser.add_argument("--data-dir", type=str, required=True, help="Root directory containing 'meshes' and 'metadata' subfolders, and the 'matrices_metadata' CSV file with matrices parameters.")
     parser.add_argument("--test-results-dir", type=str, required=True, help="Directory where the results of the tests will be saved.")
     parser.add_argument("--tmp-dir", type=str, required=True, help="Temporary path to store intermediate results.")
+
     args = parser.parse_args()
     
     input_csv_file = Path(args.input_csv_file).resolve()
@@ -43,7 +44,7 @@ def generate_tests():
         cmake_file.write(f"set(TEST_DATA_DIR {data_dir})\n")
         cmake_file.write(f"set(TEST_RESULT_DIR {test_results_dir})\n")
         cmake_file.write(f"set(TEST_TMP_PATH {tmp_dir})\n\n")
-    
+
     def add_test(test_id, executable, matrix_name, matrix_type, n_proc):
         with open(output_cmake_file, mode='a') as cmake_file:
             cmake_file.write(f"set(TEST_ID {test_id})\n")
@@ -58,6 +59,7 @@ def generate_tests():
             cmake_file.write( "    --data-dir ${TEST_DATA_DIR}\n")
             cmake_file.write( "    --test-results-dir ${TEST_RESULT_DIR}\n")
             cmake_file.write( "    --tmp-dir ${TEST_TMP_PATH}\n")
+            cmake_file.write( "    --mpi-executable ${MPIEXEC}\n")
             cmake_file.write(")\n\n")
         return
     
