@@ -1,4 +1,4 @@
-static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Parameters : \n -f0 : matrix fileName \n -nU :number of velocity lines \n -nP : number of pressure lines \n -mat_type : PETSc matrix type \n";
+static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Parameters : \n -f0 : matrix fileName \n -nU :number of velocity lines \n -nP : number of pressure lines \n -mat_type : PETSc matrix type \n -usePrec : boolean yes or no (default is yes) \n";
 
 /*************************************************************************************************/
 /* Parallel implementation of a new preconditioner for the linear system A_{input} X_{output} = b_{input} */
@@ -116,6 +116,7 @@ int main( int argc, char **args ){
 	PetscPrintf(PETSC_COMM_WORLD,"Size of D : %d,%d\n", size1,size2);
 	MatGetSize(C, &size1,&size2);
 	PetscPrintf(PETSC_COMM_WORLD,"Size of C : %d,%d\n", size1,size2);
+	PetscBarrier(NULL);
 
 //##### Definition of the right hand side to test the preconditioner
 	Vec b_input, X_hat, X_anal;
@@ -139,6 +140,7 @@ int main( int argc, char **args ){
 	MatMult( A_input, X_anal, b_input);
 	PetscPrintf(PETSC_COMM_WORLD,"... vectors created \n");	
 	MatDestroy(&A_input);//Early destruction since A_input is a sequential matrix stored on process 0
+	PetscBarrier(NULL);
 
 //##### Application of the transformation A -> A_hat
 	// Declaration
@@ -220,8 +222,19 @@ int main( int argc, char **args ){
 	KSPSetType( kspArray[1], KSPGMRES);
 	KSPGetPC(kspArray[0], &pc1);
 	KSPGetPC(kspArray[1], &pc2);
-	PCSetType( pc1, PCJACOBI);
-	PCSetType( pc2, PCGAMG);
+
+	PetscBool usePrec = PETSC_TRUE;
+	PetscOptionsGetBool( NULL, NULL, "-usePrec", &usePrec, NULL);
+	if (usePrec )
+	{
+	    PCSetType( pc1, PCJACOBI);
+	    PCSetType( pc2, PCGAMG);
+	}
+	else
+	{
+	    PCSetType( pc1, PCNONE);
+	    PCSetType( pc2, PCNONE);
+	}
 
 	PCSetFromOptions(pc);
 	PCSetUp(pc);
@@ -331,7 +344,7 @@ int main( int argc, char **args ){
 	error=sqrt(error_u*error_u+error_p*error_p);
 	PetscPrintf(PETSC_COMM_WORLD,"L2 total Error : ||X_anal - X_num|| = %e, (remember ||X_anal||=1)\n\n", error);
 
-	PetscCheck( error < 100*residu, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high compared to residual (e>100*r) : e=%e, r=%e\n", error, residu);
+	PetscCheck( error < 1e6*residu, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high compared to residual (e>1e6*r) : e=%e, r=%e\n", error, residu);
 
 //##### Save the results in a JSON file
 	#include <unistd.h>

@@ -1,4 +1,4 @@
-static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Parameters : \n -f0 : matrix fileName \n -nU :number of velocity lines \n -nP : number of pressure lines \n -mat_type : PETSc matrix type \n";
+static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Parameters : \n -f0 : matrix fileName \n -nU :number of velocity lines \n -nP : number of pressure lines \n -mat_type : PETSc matrix type \n -usePrec : boolean yes or no (default is yes) \n";
 
 /*************************************************************************************************/
 /* Parallel implementation of a new preconditioner for the linear system A_{input} X_{output} = b_{input} */
@@ -246,8 +246,19 @@ int main( int argc, char **args ){
 	KSPSetType( kspArray[1], KSPGMRES);
 	KSPGetPC(kspArray[0], &pc1);
 	KSPGetPC(kspArray[1], &pc2);
-	PCSetType( pc1, PCJACOBI);
-	PCSetType( pc2, PCGAMG);
+
+	PetscBool usePrec = PETSC_TRUE;
+	PetscOptionsGetBool( NULL, NULL, "-usePrec", &usePrec, NULL);
+	if (usePrec )
+	{
+	    PCSetType( pc1, PCJACOBI);
+	    PCSetType( pc2, PCGAMG);
+	}
+	else
+	{
+	    PCSetType( pc1, PCNONE);
+	    PCSetType( pc2, PCNONE);
+	}
 
 	PCSetFromOptions(pc);
 	PCSetUp(pc);

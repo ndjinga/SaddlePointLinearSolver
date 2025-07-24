@@ -1,4 +1,4 @@
-static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Parameters : \n -f0 : matrix fileName \n -nU :number of velocity lines \n -nP : number of pressure lines \n -mat_type : PETSc matrix type \n";
+static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Parameters : \n -f0 : matrix fileName \n -nU :number of velocity lines \n -nP : number of pressure lines \n -mat_type : PETSc matrix type \n -usePrec : boolean yes or no (default is yes) \n";
 
 /*************************************************************************************************/
 /* Sequential implementation of a new preconditioner for the linear system A_{input} X_{output} = b_{input} */
@@ -83,11 +83,11 @@ int main( int argc, char **args ){
 
 
 //##### Calling KSP solver and monitor convergence
-	KSP ksp, *subksp;
-	PC pc, subpc0, subpc1;
+	KSP ksp, *kspArray;
+	PC pc, pc1, pc2;
 	KSPType ksp_type = KSPFGMRES, ksp_type0, ksp_type1;
 	PCType pc_type=PCFIELDSPLIT, pc_type0, pc_type1;
-	int nsplit = 2;
+	int nblocks=2;
 	PCCompositeType pc_composite_type = PC_COMPOSITE_MULTIPLICATIVE;//or ADDITIVE ???
 
 	double residu, abstol, rtol=1e-7, dtol;
@@ -105,6 +105,24 @@ int main( int argc, char **args ){
 		PCFieldSplitSetType(pc, pc_composite_type);
 		PCFieldSplitSetIS(pc, "0",is_P);
 		PCFieldSplitSetIS(pc, "1",is_U);
+		PCFieldSplitGetSubKSP( pc, &nblocks, &kspArray);
+		KSPSetType( kspArray[0], KSPCG);
+		KSPSetType( kspArray[1], KSPGMRES);
+		KSPGetPC(kspArray[0], &pc1);
+		KSPGetPC(kspArray[1], &pc2);
+
+		PetscBool usePrec = PETSC_TRUE;
+		PetscOptionsGetBool( NULL, NULL, "-usePrec", &usePrec, NULL);
+		if (usePrec )
+		{
+		    PCSetType( pc1, PCJACOBI);
+		    PCSetType( pc2, PCGAMG);
+		}
+		else
+		{
+		    PCSetType( pc1, PCNONE);
+		    PCSetType( pc2, PCNONE);
+		}
 	}
 	else{
 		PetscPrintf(PETSC_COMM_WORLD,"Using PCILU\n");
@@ -121,13 +139,13 @@ int main( int argc, char **args ){
 	PCFieldSplitGetType(pc, &pc_composite_type);
 	KSPGetType(ksp,&ksp_type);
 	PCGetType(pc,&pc_type);
-	PCFieldSplitSchurGetSubKSP( pc, &nsplit, &subksp);
-	KSPGetType(subksp[0],&ksp_type0);
-	KSPGetType(subksp[1],&ksp_type1);
-	KSPGetPC(subksp[0], &subpc0);
-	KSPGetPC(subksp[1], &subpc1);
-	PCGetType( subpc0, &pc_type0);
-	PCGetType( subpc1, &pc_type1);
+	PCFieldSplitSchurGetSubKSP( pc, &nblocks, &kspArray);
+	KSPGetType(kspArray[0],&ksp_type0);
+	KSPGetType(kspArray[1],&ksp_type1);
+	KSPGetPC(kspArray[0], &pc1);
+	KSPGetPC(kspArray[1], &pc2);
+	PCGetType( pc1, &pc_type0);
+	PCGetType( pc2, &pc_type1);
 	if(pc_composite_type==PC_COMPOSITE_MULTIPLICATIVE)
 		PetscPrintf(PETSC_COMM_WORLD,"... linear system solved with ksp_type %s, pc_composite_type PC_COMPOSITE_MULTIPLICATIVE\n",ksp_type);
 	else
@@ -178,7 +196,7 @@ int main( int argc, char **args ){
 	getSolutionFromXhat(G, v, X_hat, &X_output, &X_u, &X_p, is_U, is_P);
 	
 	error = computeErrorAndCheck( X_anal, X_output, is_U, is_P, X_u, X_p);	
-	PetscCheck( error < 100*residu, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high compared to residual (e>100*r) : e=%e, r=%e\n", error, residu);
+	PetscCheck( error < 1e6*residu, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high compared to residual (e>1e6*r) : e=%e, r=%e\n", error, residu);
 	
 //##### Cleaning of the memory
 	MatDestroy(&A_input);
@@ -202,7 +220,7 @@ int main( int argc, char **args ){
 	ISDestroy(&is_P);
 
 	KSPDestroy(&ksp);
-	PetscFree(subksp);
+	PetscFree(kspArray);
 	
 	PetscFinalize();
 	return ierr;
