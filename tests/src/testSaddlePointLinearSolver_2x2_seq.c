@@ -106,8 +106,8 @@ int main( int argc, char **args ){
 		PCFieldSplitSetIS(pc, "0",is_P);
 		PCFieldSplitSetIS(pc, "1",is_U);
 		PCFieldSplitGetSubKSP( pc, &nblocks, &kspArray);
-		KSPSetType( kspArray[0], KSPCG);
-		KSPSetType( kspArray[1], KSPGMRES);
+		KSPSetType( kspArray[0], KSPPREONLY);
+		KSPSetType( kspArray[1], KSPPREONLY);
 		KSPGetPC(kspArray[0], &pc1);
 		KSPGetPC(kspArray[1], &pc2);
 
