@@ -46,6 +46,7 @@ int main( int argc, char **args ){
 	PetscViewer viewer;
 	Mat A_input;
 	PetscBool flg;
+	PetscInt n_u, n_p, n;//Total number of velocity and pressure lines. n = n_u+ n_p
 
 	PetscOptionsGetString(NULL,NULL,"-f0",file[0],PETSC_MAX_PATH_LEN,&flg);
 	PetscStrcpy(mat_type,MATAIJ);// Default value for PETSc Matrix type
@@ -57,8 +58,19 @@ int main( int argc, char **args ){
 	PetscViewerFileSetMode(viewer,FILE_MODE_READ);
 	PetscViewerFileSetName(viewer,file[0]);
 	
+	PetscOptionsGetInt(NULL,NULL,"-nU",&n_u,NULL);
+	PetscOptionsGetInt(NULL,NULL,"-nP",&n_p,NULL);
+	n=n_u+n_p;
+
 	MatCreate(PETSC_COMM_WORLD, &A_input);
 	MatSetType(A_input,mat_type);
+
+	if( size>1)
+	    if( rank == 0)
+	        MatSetSizes( A_input, n-(size-1)*((n-n_u)/(size-1)), n-(size-1)*((n-n_u)/(size-1)), n, n);
+	    else
+	        MatSetSizes( A_input, (n-n_u)/(size-1), (n-n_u)/(size-1), n, n);
+
 	MatLoad(A_input,viewer);
 	PetscViewerDestroy(&viewer);
 	PetscPrintf(PETSC_COMM_WORLD,"... matrix Loaded \n");	
@@ -68,12 +80,8 @@ int main( int argc, char **args ){
 	Mat M, G, D, C;
 	PetscInt nrows, ncolumns;//Total number of rows and columns of A_input
 	PetscInt irow_min, irow_max;//min and max indices of rows stored locally on this process
-	PetscInt n_u, n_p, n;//Total number of velocity and pressure lines. n = n_u+ n_p
 	IS is_U,is_P;
 
-	PetscOptionsGetInt(NULL,NULL,"-nU",&n_u,NULL);
-	PetscOptionsGetInt(NULL,NULL,"-nP",&n_p,NULL);
-	n=n_u+n_p;
 	MatGetOwnershipRange( A_input, &irow_min, &irow_max);
 	MatGetSize( A_input, &nrows, &ncolumns);
 	PetscInt min_pressure_lines = irow_min <= n_u ? n_u : irow_min;//max(irow_min, n_u)
