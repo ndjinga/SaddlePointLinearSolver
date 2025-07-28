@@ -2,6 +2,7 @@ import argparse
 from pathlib import Path
 import pandas as pd
 from custom_logger import get_logger
+import json
 
 logger = get_logger(__name__)
 
@@ -30,13 +31,55 @@ def generate_tests():
     
     input_csv_file = Path(args.input_csv_file).resolve()
     output_cmake_file = Path(args.output_cmake_file).resolve()
-    data_dir = Path(args.data_dir).resolve()
+    data_path = Path(args.data_dir)
     test_results_dir = Path(args.test_results_dir).resolve()
     tmp_dir = Path(args.tmp_dir).resolve()
     
     # TODO
     #test existence
-    
+
+    def fetch_command(executable, matrix_name, matrix_type, n_proc, option):
+        metadata_path = data_path / "metadata" / f"{matrix_type}/{matrix_name}_metadata.json"
+        if not metadata_path.exists():
+            raise FileNotFoundError(f"Metadata file does not exist: {metadata_path}")
+
+        with open(metadata_path) as f:
+            metadata = json.load(f)
+        if "nU" not in metadata or "nP" not in metadata:
+            raise KeyError(f"Metadata file {metadata_path} must contain 'nU' and 'nP' keys.")
+        nU = metadata["nU"]
+        nP = metadata["nP"]
+        matrix = f"${{CMAKE_SOURCE_DIR}}/tests/data/matrices/{matrix_type}/{matrix_name}.petsc"
+        command = f'"${{CMAKE_BINARY_DIR}}/{executable}" "-f0" "{matrix}" "-nU" "{nU}" "-nP" "{nP}"' + \
+            (f' "{option}"' if option else "")
+        if n_proc == 1:
+            return command
+        else:
+            return f'"${{MPIEXEC}}" "-n" "{n_proc}" {command}'
+
+    def add_test(test_id, executable, matrix_name, matrix_type, n_proc, mode, option):
+        command = fetch_command(executable, matrix_name, matrix_type, n_proc, option)
+        with open(output_cmake_file, mode='a') as cmake_file:
+            cmake_file.write(f"set(TEST_ID {test_id})\n")
+            cmake_file.write( "add_test(\n")
+            cmake_file.write( "  NAME ${TEST_ID}\n")
+            cmake_file.write(f"  COMMAND {command}")
+            if mode == "complete":
+                cmake_file.write( ";\n")
+                cmake_file.write( "    python3 ${CMAKE_SOURCE_DIR}/scripts/collect_test_data.py\n")
+                cmake_file.write( "      --test-id ${TEST_ID}\n")
+                cmake_file.write(f"      --executable  ${{CMAKE_BINARY_DIR}}/{executable}\n")
+                cmake_file.write(f"      --matrix-name {matrix_name}\n")
+                cmake_file.write(f"      --matrix-type {matrix_type}\n")
+                cmake_file.write(f"      --n-proc {n_proc}\n")
+                cmake_file.write( "      --data-dir ${TEST_DATA_DIR}\n")
+                cmake_file.write( "      --test-results-dir ${TEST_RESULT_DIR}\n")
+                cmake_file.write( "      --tmp-dir ${TEST_TMP_PATH}")
+            
+            cmake_file.write("\n)\n\n")
+        return
+
+    data_dir = data_path.resolve()
     test_results_dir.parent.mkdir(parents=True, exist_ok=True)
     with open(output_cmake_file, 'w') as cmake_file:
         cmake_file.write(f"# Generated tests with generate_tests.py script from {input_csv_file}\n\n")
@@ -44,26 +87,11 @@ def generate_tests():
         cmake_file.write(f"set(TEST_DATA_DIR {data_dir})\n")
         cmake_file.write(f"set(TEST_RESULT_DIR {test_results_dir})\n")
         cmake_file.write(f"set(TEST_TMP_PATH {tmp_dir})\n\n")
-
-    def add_test(test_id, executable, matrix_name, matrix_type, n_proc):
-        with open(output_cmake_file, mode='a') as cmake_file:
-            cmake_file.write(f"set(TEST_ID {test_id})\n")
-            cmake_file.write( "add_test(\n")
-            cmake_file.write( "  NAME ${TEST_ID}\n")
-            cmake_file.write( "  COMMAND python3 ${CMAKE_SOURCE_DIR}/scripts/run_one_test.py\n")
-            cmake_file.write( "    --test-id ${TEST_ID}\n")
-            cmake_file.write(f"    --executable  ${{CMAKE_BINARY_DIR}}/{executable}\n")
-            cmake_file.write(f"    --matrix-name {matrix_name}\n")
-            cmake_file.write(f"    --matrix-type {matrix_type}\n")
-            cmake_file.write(f"    --n-proc {n_proc}\n")
-            cmake_file.write( "    --data-dir ${TEST_DATA_DIR}\n")
-            cmake_file.write( "    --test-results-dir ${TEST_RESULT_DIR}\n")
-            cmake_file.write( "    --tmp-dir ${TEST_TMP_PATH}\n")
-            cmake_file.write( "    --mpi-executable ${MPIEXEC}\n")
-            cmake_file.write(")\n\n")
-        return
     
     input_csv_df = pd.read_csv(input_csv_file)
+
+    success_count = 0
+    failure_count = 0
     
     for index, row in input_csv_df.iterrows():
         test_id = row['test_id']
@@ -71,7 +99,9 @@ def generate_tests():
         matrix_name = row['matrix_name']
         matrix_type = row['matrix_type']
         n_proc_str = str(row['n_proc'])
-        
+        mode = row['mode']
+        option = "" if pd.isna(row['option']) else row['option']      
+    
         if not test_id:
             logger.error(f"Missing 'test_id' in row {index} of '{input_csv_file}'.")
             return 1
@@ -87,14 +117,24 @@ def generate_tests():
         if not n_proc_str:
             logger.error(f"Missing 'n_proc' in row {index} of '{input_csv_file}'.")
             return 1
+        if not mode:
+            logger.error(f"Missing 'mode' in row {index} of '{input_csv_file}'.")
+            return 1
+
 
         n_proc_values = parse_n_proc(n_proc_str)
         for n_proc in n_proc_values:
             tid = test_id if len(n_proc_values) == 1 else f"{test_id}_nproc{n_proc}"
-            add_test(tid, executable, matrix_name, matrix_type, n_proc)
+            try:
+                add_test(tid, executable, matrix_name, matrix_type, n_proc, mode, option)
+            except Exception as e:
+                logger.error(f"'{tid}' not generated : {e}")
+                failure_count += 1
+                continue
             logger.info(f"'{tid}' generated")
-        
-    logger.info(f"All tests from {input_csv_file} succefully generated in {output_cmake_file}.")
+            success_count += 1
+
+    logger.info(f"Test generation completed from {input_csv_file}. {success_count} tests successfully added, {failure_count} errors encountered. Output written to {output_cmake_file}.")
     return 0
         
     

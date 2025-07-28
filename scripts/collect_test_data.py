@@ -2,9 +2,8 @@ import argparse
 import os
 from pathlib import Path
 import json
-import subprocess
 
-def run_one_test():
+def collect_test_data():
     parser = argparse.ArgumentParser(description="Run a single test with specified matrix and executable.")
     parser.add_argument("--test-id", type=str, required=True, help="Identifier for the test.")
     parser.add_argument("--executable", type=str, required=True, help="Path of the executable to run the test.")
@@ -14,7 +13,6 @@ def run_one_test():
     parser.add_argument("--data-dir", type=str, required=True, help="Root directory containing 'meshes' and 'metadata' subfolders, and the 'matrices_metadata' CSV file with matrices parameters.")
     parser.add_argument("--test-results-dir", type=str, required=True, help="Path to save the result of the test.")
     parser.add_argument("--tmp-dir", type=str, required=True, help="Temporary dir to store intermediate results.")
-    parser.add_argument("--mpi-executable", type=str, required=True, help="Path to the MPI executable.")
     args = parser.parse_args()
 
     test_id = args.test_id
@@ -25,7 +23,6 @@ def run_one_test():
     data_path = Path(args.data_dir)
     result_directory = Path(args.test_results_dir)
     tmp_path = Path(args.tmp_dir)
-    mpi_executable = args.mpi_executable
 
     executable_path = Path(executable)
     if not executable_path.is_file():
@@ -36,9 +33,6 @@ def run_one_test():
     if not data_path.is_dir():
         raise FileNotFoundError(f"Data directory does not exist: {data_path}")
 
-    matrix_path = data_path / "matrices" / f"{matrix_type}/{matrix_name}.petsc"
-    if not matrix_path.exists():
-        raise FileNotFoundError(f"Matrix file does not exist: {matrix_path}")
 
     metadata_path = data_path / "metadata" / f"{matrix_type}/{matrix_name}_metadata.json"
     if not metadata_path.exists():
@@ -52,25 +46,6 @@ def run_one_test():
     nU = metadata["nU"]
     nP = metadata["nP"]
 
-    # Prepare command
-    if n_proc <= 0:
-        raise ValueError("Number of processes must be greater than 0.")
-
-    cmd = [
-        str(executable_path),
-        "-f0", str(matrix_path),
-        "-nU", str(nU),
-        "-nP", str(nP)
-    ]
-
-    if n_proc > 1:
-        cmd = [mpi_executable, "-n", str(n_proc)] + cmd
-
-
-    print(f"Running test: {test_id}")
-    print(f"Command: {' '.join(cmd)}")
-
-    subprocess.run(cmd, check=True)
 
     with open(tmp_path / f"output.json") as f:  # a terme : f"{test_id}__{matrix_name}__{matrix_type}.json"
         output_data = json.load(f)
@@ -94,4 +69,4 @@ def run_one_test():
         json.dump(result, f, indent=2)
 
 if __name__ == "__main__":
-    run_one_test()
+    collect_test_data()
