@@ -50,33 +50,34 @@ def generate_tests():
         nU = metadata["nU"]
         nP = metadata["nP"]
         matrix = f"${{CMAKE_SOURCE_DIR}}/tests/data/matrices/{matrix_type}/{matrix_name}.petsc"
-        command = f'"${{CMAKE_BINARY_DIR}}/{executable}" "-f0" "{matrix}" "-nU" "{nU}" "-nP" "{nP}"' + \
-            (f' "{option}"' if option else "")
+        command = f'\\\"${{CMAKE_BINARY_DIR}}/{executable}\\\" \\\"-f0\\\" \\\"{matrix}\\\" \\\"-nU\\\" \\\"{nU}\\\" \\\"-nP\\\" \\\"{nP}\\\"' + \
+                  (f' \\\"{option}\\\"' if option else "")
         if n_proc == 1:
             return command
         else:
-            return f'"${{MPIEXEC}}" "-n" "{n_proc}" {command}'
+            return f'\\\"${{MPIEXEC}}\\\" \\\"-n\\\" \\\"{n_proc}\\\" {command}'
 
     def add_test(test_id, executable, matrix_name, matrix_type, n_proc, mode, option):
         command = fetch_command(executable, matrix_name, matrix_type, n_proc, option)
         with open(output_cmake_file, mode='a') as cmake_file:
             cmake_file.write(f"set(TEST_ID {test_id})\n")
-            cmake_file.write( "add_test(\n")
-            cmake_file.write( "  NAME ${TEST_ID}\n")
-            cmake_file.write(f"  COMMAND {command}")
+            cmake_file.write("add_test(\n")
+            cmake_file.write("  NAME ${TEST_ID}\n")
+            cmake_file.write("  COMMAND bash -c \"\n")
+            cmake_file.write(f"{command}; \\\n")
             if mode == "complete":
-                cmake_file.write( ";\n")
-                cmake_file.write( "    python3 ${CMAKE_SOURCE_DIR}/scripts/collect_test_data.py\n")
-                cmake_file.write( "      --test-id ${TEST_ID}\n")
-                cmake_file.write(f"      --executable  ${{CMAKE_BINARY_DIR}}/{executable}\n")
-                cmake_file.write(f"      --matrix-name {matrix_name}\n")
-                cmake_file.write(f"      --matrix-type {matrix_type}\n")
-                cmake_file.write(f"      --n-proc {n_proc}\n")
-                cmake_file.write( "      --data-dir ${TEST_DATA_DIR}\n")
-                cmake_file.write( "      --test-results-dir ${TEST_RESULT_DIR}\n")
-                cmake_file.write( "      --tmp-dir ${TEST_TMP_PATH}")
-            
-            cmake_file.write("\n)\n\n")
+                cmake_file.write("    python3 ${CMAKE_SOURCE_DIR}/scripts/collect_test_data.py \\\n")
+                cmake_file.write("      --test-id \\\"${TEST_ID}\\\" \\\n")
+                cmake_file.write(f"      --executable \\\"${{CMAKE_BINARY_DIR}}/{executable}\\\" \\\n")
+                cmake_file.write(f"      --matrix-name {matrix_name} \\\n")
+                cmake_file.write(f"      --matrix-type {matrix_type} \\\n")
+                cmake_file.write(f"      --n-proc {n_proc} \\\n")
+                cmake_file.write("      --data-dir \\\"${TEST_DATA_DIR}\\\" \\\n")
+                cmake_file.write("      --test-results-dir \\\"${TEST_RESULT_DIR}\\\" \\\n")
+                cmake_file.write("      --tmp-dir \\\"${TEST_TMP_PATH}\\\"\"\n")
+            else:
+                cmake_file.write("\"\n")
+            cmake_file.write(")\n\n")
         return
 
     data_dir = data_path.resolve()
