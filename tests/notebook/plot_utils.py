@@ -25,7 +25,8 @@ def plot_metric_for_types(
     title,
     apply_mean=False,
     show_figures=False,
-    save_figures=False
+    save_figures=False,
+    ylog=True
 ):
     plt.clf()
     min_proc =  df['n-proc'].min()
@@ -43,7 +44,8 @@ def plot_metric_for_types(
         plt.plot(x, y, marker='o', label=mtype)
 
     plt.xscale('log')
-    plt.yscale('log')
+    if ylog:
+        plt.yscale('log')
     plt.xlabel("Matrix size")
     plt.ylabel(y_label)
     plt.title(title)
@@ -146,7 +148,6 @@ def plot_procs_for_types(
             y_sorted = np.array(y)[indices]
             ax.plot(x_sorted, y_sorted, marker='o', label=f'{nproc} proc')
         ax.set_xscale('log')
-        ax.set_yscale('log')
         ax.set_xlabel('Matrix size')
         ax.set_ylabel('Total time')
         ax.set_title(f'Mesh type: {mtype}')
