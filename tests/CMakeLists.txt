@@ -18,6 +18,9 @@ set (TEST_RESULTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/test_results" CACHE PATH "Pat
 # Define the path to the directory containing tables for test results
 set (TABLES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/tables" CACHE PATH "Path to tables directory")
 
+# Define the path to the temporary directory used during test generation
+set (TMP_DIR "${CMAKE_CURRENT_BINARY_DIR}/tmp" CACHE PATH "Path to temporary directory")
+
 
 # Include the generated tests file
 include(${GENERATED_TESTS_FILE})
@@ -39,7 +42,7 @@ add_custom_target(generate-tests
     --output-cmake-file ${CMAKE_CURRENT_SOURCE_DIR}/generated_tests.cmake
     --data-dir ${DATA_DIR}
     --test-results-dir ${TEST_RESULTS_DIR}
-    --tmp-dir ${CMAKE_CURRENT_BINARY_DIR}/tmp
+    --tmp-dir ${TMP_DIR}
 
   COMMENT "Generate tests."
 )

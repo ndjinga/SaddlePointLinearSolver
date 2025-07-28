@@ -50,7 +50,7 @@ def generate_tests():
         nU = metadata["nU"]
         nP = metadata["nP"]
         matrix = f"${{CMAKE_SOURCE_DIR}}/tests/data/matrices/{matrix_type}/{matrix_name}.petsc"
-        command = f'\\\"${{CMAKE_BINARY_DIR}}/{executable}\\\" \\\"-f0\\\" \\\"{matrix}\\\" \\\"-nU\\\" \\\"{nU}\\\" \\\"-nP\\\" \\\"{nP}\\\"' + \
+        command = f'\\\"${{CMAKE_BINARY_DIR}}/{executable}\\\" \\\"-f0\\\" \\\"{matrix}\\\" \\\"-nU\\\" \\\"{nU}\\\" \\\"-nP\\\" \\\"{nP}\\\" \\\"-tmp_file\\\" \\\"${{TMP_FILE}}\\\"' + \
                   (f' \\\"{option}\\\"' if option else "")
         if n_proc == 1:
             return command
@@ -61,6 +61,8 @@ def generate_tests():
         command = fetch_command(executable, matrix_name, matrix_type, n_proc, option)
         with open(output_cmake_file, mode='a') as cmake_file:
             cmake_file.write(f"set(TEST_ID {test_id})\n")
+            cmake_file.write(f"set(TMP_FILE ${{TMP_DIR}}/tmp_output_${{TEST_ID}}.json)\n\n")
+
             cmake_file.write("add_test(\n")
             cmake_file.write("  NAME ${TEST_ID}\n")
             cmake_file.write("  COMMAND bash -c \"\n")
@@ -74,7 +76,7 @@ def generate_tests():
                 cmake_file.write(f"      --n-proc {n_proc} \\\n")
                 cmake_file.write("      --data-dir \\\"${TEST_DATA_DIR}\\\" \\\n")
                 cmake_file.write("      --test-results-dir \\\"${TEST_RESULT_DIR}\\\" \\\n")
-                cmake_file.write("      --tmp-dir \\\"${TEST_TMP_PATH}\\\"\"\n")
+                cmake_file.write("      --tmp-file \\\"${TMP_FILE}\\\"\"\n")
             else:
                 cmake_file.write("\"\n")
             cmake_file.write(")\n\n")
@@ -87,7 +89,6 @@ def generate_tests():
         cmake_file.write("enable_testing()\n\n")
         cmake_file.write(f"set(TEST_DATA_DIR {data_dir})\n")
         cmake_file.write(f"set(TEST_RESULT_DIR {test_results_dir})\n")
-        cmake_file.write(f"set(TEST_TMP_PATH {tmp_dir})\n\n")
     
     input_csv_df = pd.read_csv(input_csv_file)
 

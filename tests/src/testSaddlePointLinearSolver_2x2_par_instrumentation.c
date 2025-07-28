@@ -396,6 +396,10 @@ int main( int argc, char **args ){
 	#include <fcntl.h>
 	#include <sys/stat.h>
 
+	char tmp_file[256];
+	PetscOptionsGetString(NULL,NULL,"-tmp_file",tmp_file,sizeof(mat_type),NULL);
+	PetscPrintf(PETSC_COMM_WORLD, "tmp_file = %s\n", tmp_file);
+
     PetscPrintf(PETSC_COMM_WORLD, "Creating output directory tmp...\n");
     if (access("tmp", F_OK) == -1) {
         if (mkdir("tmp", 0777) == -1) {
@@ -410,7 +414,7 @@ int main( int argc, char **args ){
 	double residual_error_ratio = residu/error;
 	int factor = 100000;
 
-	FILE* outputFile = fopen("tmp/output.json", "w");
+	FILE* outputFile = fopen(tmp_file, "w");
 	fprintf(outputFile, "{\n");
 	fprintf(outputFile, "  \"iter\": %d,\n", iter);
 	fprintf(outputFile, "  \"iter1\": %d,\n", iter1);
@@ -431,7 +435,7 @@ int main( int argc, char **args ){
 
 	fprintf(outputFile, "}\n");
 	fclose(outputFile);
-	PetscPrintf(PETSC_COMM_WORLD, "testOutput saved in tmp/output.json\n");
+	PetscPrintf(PETSC_COMM_WORLD, "testOutput saved in %s\n", tmp_file);
 
 
 	PetscCheck( error < factor*residu, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high compared to residual (e>100*r) : e=%e, r=%e\n", error, residu);
