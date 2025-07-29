@@ -9,7 +9,8 @@ def collect_test_data():
     parser.add_argument("--executable", type=str, required=True, help="Path of the executable to run the test.")
     parser.add_argument("--matrix-name", type=str, required=True, help="Name of the matrix to test (without extension).")
     parser.add_argument("--matrix-type", type=str, required=True, help="Type of the matrix to test.")
-    parser.add_argument("--n-proc", type=int, help="Number of processes to use for the test.")
+    parser.add_argument("--n-proc", type=int, default=1, help="Number of processes to use for the test.")
+    parser.add_argument("--option", type=str, default="", help="Option used during the test.")
     parser.add_argument("--data-dir", type=str, required=True, help="Root directory containing 'meshes' and 'metadata' subfolders, and the 'matrices_metadata' CSV file with matrices parameters.")
     parser.add_argument("--test-results-dir", type=str, required=True, help="Path to save the result of the test.")
     parser.add_argument("--tmp-file", type=str, required=True, help="Temporary file where the output of the test is stored.")
@@ -59,6 +60,7 @@ def collect_test_data():
         "matrix-size": nU + nP,
         "nU": nU,
         "nP": nP,
+        "option": args.option
     }
     result.update(output_data)
 

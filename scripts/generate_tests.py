@@ -3,6 +3,7 @@ from pathlib import Path
 import pandas as pd
 from custom_logger import get_logger
 import json
+import re
 
 logger = get_logger(__name__)
 
@@ -18,6 +19,12 @@ def parse_n_proc(n_proc_str):
         return list(range(start, end + 1))
     else:
         return [int(n_proc_str)]
+
+def safe_filename(title):
+    return re.sub(r'[^\w\-]', '_', title)
+
+def format_option(option):
+    return " ".join(f"\\\"{opt}\\\"" for opt in option.split())
 
 def generate_tests():
     parser = argparse.ArgumentParser(description="Generate a CMake file containing tests based on parameters specified in a CSV file.")    
@@ -51,7 +58,7 @@ def generate_tests():
         nP = metadata["nP"]
         matrix = f"${{CMAKE_SOURCE_DIR}}/tests/data/matrices/{matrix_type}/{matrix_name}.petsc"
         command = f'\\\"${{CMAKE_BINARY_DIR}}/{executable}\\\" \\\"-f0\\\" \\\"{matrix}\\\" \\\"-nU\\\" \\\"{nU}\\\" \\\"-nP\\\" \\\"{nP}\\\" \\\"-tmp_file\\\" \\\"${{TMP_FILE}}\\\"' + \
-                  (f' \\\"{option}\\\"' if option else "")
+                  (f' {format_option(option)}' if option else "")
         if n_proc == 1:
             return command
         else:
@@ -61,25 +68,27 @@ def generate_tests():
         command = fetch_command(executable, matrix_name, matrix_type, n_proc, option)
         with open(output_cmake_file, mode='a') as cmake_file:
             cmake_file.write(f"set(TEST_ID {test_id})\n")
-            cmake_file.write(f"set(TMP_FILE ${{TMP_DIR}}/tmp_output_${{TEST_ID}}.json)\n\n")
+            cmake_file.write(f"set(TMP_FILE ${{TMP_DIR}}/tmp_output_${{TEST_ID}}.json)\n")
 
             cmake_file.write("add_test(\n")
             cmake_file.write("  NAME ${TEST_ID}\n")
             cmake_file.write("  COMMAND bash -c \"\n")
-            cmake_file.write(f"{command}; \\\n")
-            if mode == "complete":
-                cmake_file.write("    python3 ${CMAKE_SOURCE_DIR}/scripts/collect_test_data.py \\\n")
-                cmake_file.write("      --test-id \\\"${TEST_ID}\\\" \\\n")
+            cmake_file.write(f"    {command};")
+            if mode == "complete":              
+                cmake_file.write( " \\\n ")
+                cmake_file.write( "   python3 ${CMAKE_SOURCE_DIR}/scripts/collect_test_data.py \\\n")
+                cmake_file.write( "      --test-id \\\"${TEST_ID}\\\" \\\n")
                 cmake_file.write(f"      --executable \\\"${{CMAKE_BINARY_DIR}}/{executable}\\\" \\\n")
                 cmake_file.write(f"      --matrix-name {matrix_name} \\\n")
                 cmake_file.write(f"      --matrix-type {matrix_type} \\\n")
                 cmake_file.write(f"      --n-proc {n_proc} \\\n")
-                cmake_file.write("      --data-dir \\\"${TEST_DATA_DIR}\\\" \\\n")
-                cmake_file.write("      --test-results-dir \\\"${TEST_RESULT_DIR}\\\" \\\n")
-                cmake_file.write("      --tmp-file \\\"${TMP_FILE}\\\"\"\n")
+                cmake_file.write(f"      --option \\\"{option}\\\" \\\n")
+                cmake_file.write( "      --data-dir \\\"${TEST_DATA_DIR}\\\" \\\n")
+                cmake_file.write( "      --test-results-dir \\\"${TEST_RESULT_DIR}\\\" \\\n")
+                cmake_file.write( "      --tmp-file \\\"${TMP_FILE}\\\"\n")
             else:
-                cmake_file.write("\"\n")
-            cmake_file.write(")\n\n")
+                cmake_file.write("\n")
+            cmake_file.write("  \"\n)\n\n")
         return
 
     data_dir = data_path.resolve()
@@ -104,9 +113,6 @@ def generate_tests():
         mode = row['mode']
         option = "" if pd.isna(row['option']) else row['option']      
     
-        if not test_id:
-            logger.error(f"Missing 'test_id' in row {index} of '{input_csv_file}'.")
-            return 1
         if not executable:
             logger.error(f"Missing 'executable' in row {index} of '{input_csv_file}'.")
             return 1
@@ -126,7 +132,7 @@ def generate_tests():
 
         n_proc_values = parse_n_proc(n_proc_str)
         for n_proc in n_proc_values:
-            tid = test_id if len(n_proc_values) == 1 else f"{test_id}_nproc{n_proc}"
+            tid = test_id if not pd.isna(test_id) else f"{mode}_{executable}_{matrix_type}_{matrix_name}_nproc{n_proc}" + (f'_{safe_filename(option)}' if option else '')
             try:
                 add_test(tid, executable, matrix_name, matrix_type, n_proc, mode, option)
             except Exception as e:
