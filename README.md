@@ -4,6 +4,15 @@ This project provides tools and scripts for testing and analyzing saddle point l
 
 The main prerequisite is PETSc. Python is optional, as well as MPI for parallel execution.
 
+After cloning, the typical installation is done via the commands
+'cmake /path/to/SOURCE/DIR -DCMAKE_INSTALL_PREFIX=/path/to/INSTALL/DIR  -DCMAKE_BUILD_TYPE=Release -DSaddlePointLinearSolver_WITH_PYTHON=ON -DSaddlePointLinearSolver_WITH_TESTS=ON -DSaddlePointLinearSolver_WITH_MPI=ON -DPETSC_DIR=/path/to/PETSC/DIR -DPETSC_ARCH=arch-linux-c-opt'
+
+'make'
+
+'make install'
+
+The parameter PETSC_ARCH should correspond to your PETSc installation (usually arch-linux-c-opt or arch-linux-c-opt on linux computers).
+
 ## Testing the Project
 
 To test the project, follow these steps:
