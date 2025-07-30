@@ -5,10 +5,9 @@ set(PROJECT_BRIEF "A preconditioner for linear systems with 2x2 block matrices")
 
 list (APPEND CMAKE_MODULE_PATH "${SaddlePointLinearSolver_SOURCE_DIR}/cmake")
 
-option (SaddlePointLinearSolver_WITH_PYTHON     "Build Python interface of freesteam" ON)
-option (SaddlePointLinearSolver_WITH_TESTS      "Build and run FREESTEAM example tests" ON)
-option (SaddlePointLinearSolver_WITH_DOCUMENTATION "Generate SOLVERLAB documentation" ON)
-option (SaddlePointLinearSolver_WITH_MPI           "Generate a parallel version of SOLVERLAB" OFF)
+option (SaddlePointLinearSolver_WITH_PYTHON     "Build Python interface" ON)
+option (SaddlePointLinearSolver_WITH_TESTS      "Build and run example tests" ON)
+option (SaddlePointLinearSolver_WITH_MPI        "Generate a parallel version" OFF)
 
 #Path to installed libraries
 set (PYTHON_ROOT_DIR      OFF CACHE STRING "Python library path" )

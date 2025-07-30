@@ -2,6 +2,8 @@
 
 This project provides tools and scripts for testing and analyzing saddle point linear solvers.
 
+The main prerequisite is PETSc. Python is optional, as well as MPI for parallel execution.
+
 ## Testing the Project
 
 To test the project, follow these steps:
