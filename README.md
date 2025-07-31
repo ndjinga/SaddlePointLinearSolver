@@ -31,21 +31,23 @@ Before running tests, ensure that metadata JSON files are generated for the simu
 cmake --build . --target generate-metadata
 ```
 
-This step only needs to be run once unless the input data changes. It will generate metadata files in the `data/` directory.
+This step only needs to be run once unless the input data changes. It will generate metadata files in the `tests/data/metadata` directory.
 
 ### 2. Generate Tests
 
-Generate the CMake tests from the CSV input file using the `generate-tests` target:
+Generate the CMake tests from the CSV input file [tests/test_parameters.csv](tests/tests_parameters.csv) using the `generate-tests` target:
 
 ```bash
 cmake --build . --target generate-tests
 ```
 
-This will create a `generated_tests.cmake` file in the `tests/` directory, which contains the `add_test` entries for the tests. **Rebuild the project only after this step** to include the generated tests:
+This will create a `generated_tests.cmake` file in the `tests/` directory, which contains the `add_test` entries for the tests. **Rebuild the project after this step** to include the generated tests:
 
 ```bash
 cmake --build .
 ```
+
+For more details about the CSV format, refer to the [CSV Format section in the Scripts README](scripts/README.md#csv-format).
 
 ### 3. Run Tests
 
@@ -55,7 +57,7 @@ Run the generated tests using CTest:
 ctest
 ```
 
-CTest will execute the tests defined in the `generated_tests.cmake` file and store the results in the `results/` directory.
+CTest will execute the tests defined in the `generated_tests.cmake` file. The mode (minimal or complete) is specified in the CSV file used to generate the tests. In minimal mode, only the command is executed, while in complete mode, data is also recorded in the `tests/results/` directory.
 
 ### 4. Merge Test Results
 
@@ -65,7 +67,7 @@ After running the tests, merge the results into a CSV file using the `merge-resu
 cmake --build . --target merge-results
 ```
 
-This will create a CSV file in the `tables/` directory containing the aggregated test results.
+This will create a CSV file in the `tests/tables/` directory containing the aggregated test results.
 
 ### 5. Clean Test Results (Optional)
 
@@ -75,18 +77,18 @@ To clean previous test results, use the `clean-results` target:
 cmake --build . --target clean-results
 ```
 
-This will remove all files in the `results/` directory.
+This will remove all files in the `tests/results/` directory.
 
 ## Directory Structure
 
-- `tests/` : [`SaddlePointLinearSolver_SRC/tests/`] Contains the `generated_tests.cmake` file and test configuration files.
-- `data/` : [`SaddlePointLinearSolver_SRC/data/`] Contains input data files and metadata.  
+- `tests/` : Contains the `generated_tests.cmake` file and test configuration files.
+- `tests/data/` :  Contains input data files and metadata.  
   The `data/` directory must include:
   - `matrices/` : Directory containing matrix files.
   - `metadata/` : Directory for metadata JSON files.
   - `matrices_metadata.csv` : CSV file describing the matrices.
-- `results/` : [`SaddlePointLinearSolver_SRC/results/`] Stores test output JSON files.
-- `tables/` : [`SaddlePointLinearSolver_SRC/tables/`] Stores merged CSV files with test results.
+- `results/` : Stores test output JSON files.
+- `tests/tables/` :  Stores merged CSV files with test results.
 
 ## Customizing Directories
 
@@ -122,8 +124,8 @@ To execute the performance analysis notebook and export it as a PDF, use:
 cmake --build . --target notebook
 ```
 
-- The notebook is located at [`notebook/performance_analysis.ipynb`](notebook/performance_analysis.ipynb).
-- The generated PDF will have the **same name as the notebook** (`performance_analysis.pdf`) and will be saved in the `notebook/` directory.
+- The notebook is located at [`tests/notebook/performance_analysis.ipynb`](tests/notebook/performance_analysis.ipynb).
+- The generated PDF will have the **same name as the notebook** (`performance_analysis.pdf`) and will be saved in the `tests/notebook/` directory.
 
 To generate figures using the dedicated Python script, use:
 
@@ -131,8 +133,8 @@ To generate figures using the dedicated Python script, use:
 cmake --build . --target generate-figures
 ```
 
-- The script is [`notebook/generate_figures.py`](notebook/generate_figures.py).
-- Figures are saved in the `notebook/figures` directory.
+- The script is [`tests/notebook/generate_figures.py`](tests/notebook/generate_figures.py).
+- Figures are saved in the `tests/notebook/figures` directory.
 
 **Note:**  
-The **path to the CSV data file** must be set in [`notebook/plot_utils.py`](notebook/plot_utils.py).
+The **path to the CSV data file** must be set in [`tests/notebook/plot_utils.py`](tests/notebook/plot_utils.py).

@@ -4,6 +4,42 @@ This directory contains scripts for generating metadata, configuring tests, merg
 
 ---
 
+## `collect_test_data.py`
+
+Runs a test on a specified matrix using a given executable and saves the results in a JSON file.
+
+### Usage
+```bash
+python3 scripts/run_one_test.py \
+  --test-id <test_id> \
+  --executable <path_to_executable> \
+  --matrix-name <matrix_name> \
+  --matrix-type <matrix_type> \
+  --n-proc <number_of_processes> \
+  --option <executable_option>\
+  --data-dir <data_directory> \
+  --test-results-dir <test_results_directory> \
+  --tmp-file <temporary_output_json>
+```
+
+### Arguments
+- `--test-id` : Identifier for the test (required).
+- `--executable` : Path to the executable (required).
+- `--matrix-name` : Name of the matrix to test (required).
+- `--matrix-type` : Type of the matrix to test (required).
+- `--n-proc` : Number of processes to use for the test (default: 1).
+- `--option` : Option used during the test (default: empty string).
+- `--data-dir` : Directory containing `matrices/`, `metadata/`, and `matrices_metadata.csv` (required).
+- `--test-results-dir` : Directory to save the final result JSON (required).
+- `--tmp-file` : Path to the temporary JSON file containing the test output (required).
+
+### Output
+The script generates a JSON file with:
+- Input parameters: `test-id`, `executable-name`, `matrix-name`, `matrix-type`, `n-proc`, `matrix-size`, `nU`, `nP`, `option`.
+- Output data: `iter`, `iter1`, `iter2`, `residual`, `total-error`, `pressure-error`, `velocity-error`, `matrix-load-time`, `matrix-split-time`, `rhs-build-time`, `solve-time`, `total-time`, `memory-consumption`, `condition-number`, `residual-error-ratio`, `status`.
+
+---
+
 ## `generate_metadata.py`
 
 Generates metadata JSON files for simulation matrices.
@@ -44,7 +80,13 @@ python3 scripts/generate_tests.py \
 
 ### CSV Format
 The input CSV must include:
-`test_id`, `executable`, `matrix_name`, `matrix_type`, `n_proc`.
+- `test_id` : Unique identifier for the test (optional, auto-generated if not provided).
+- `executable` : Name of the executable to be tested (required). The executable must exist in the build directory.
+- `matrix_name` : Name of the matrix to be used in the test (required, without file extension).
+- `matrix_type` : Type of the matrix (e.g., `2DCartesian`, `3DAssemblyMesh`, etc.) (required).
+- `n_proc` : Number of processes to use for the test. Can be a single value (e.g., `2`), a range (e.g., `[1-4]`), or a list (e.g., `{1,2,4}`) (required).
+- `mode` : Specifies the test mode. Use `minimal` to execute only the command or `complete` to also collect and organize test data (required).
+- `option` : Additional options or flags to pass to the executable (optional, leave empty if not needed).
 
 #### `n_proc` Behavior
 - Single value: `2` → one test with 2 processes.
@@ -76,51 +118,3 @@ python3 scripts/merge_results.py \
 - Scans `test-results-dir` for `.json` files.
 - Verifies required fields: `test-id`, `executable-name`, `matrix-name`, `matrix-type`, `n-proc`, `iter`, `iter1`, `iter2`, `residual`, `error`.
 - Saves the aggregated CSV in `tables-dir/output-name.csv`.
-
----
-
-## `run_one_test.py`
-
-Runs a test on a specified matrix using a given executable and saves the results in a JSON file.
-
-### Usage
-```bash
-python3 scripts/run_one_test.py \
-  --test-id <test_id> \
-  --executable <path_to_executable> \
-  --matrix-name <matrix_name> \
-  --matrix-type <matrix_type> \
-  --n-proc <number_of_processes> \
-  --data-dir <data_directory> \
-  --result-path <results_directory> \
-  --tmp-path <temporary_output_json>
-```
-
-### Arguments
-- `--test-id` : Identifier for the test (required).
-- `--executable` : Path to the executable (required).
-- `--matrix-name` : Name of the matrix (required).
-- `--matrix-type` : Type of the matrix (required).
-- `--n-proc` : Number of processes (default: 1).
-- `--data-dir` : Directory containing `matrices/`, `metadata/`, and `matrices_metadata.csv` (required).
-- `--result-path` : Directory to save the final result JSON (required).
-- `--tmp-path` : Directory for intermediate JSON output (required).
-
-### Output
-The script generates a JSON file with:
-- Input parameters: `executable`, `matrix-name`, `matrix-type`, `n-proc`.
-- Output data: `iter`, `iter1`, `iter2`, `residual`, `error`.
-
-Example:
-```json
-{
-  "executable-name": "executable_name",
-  "matrix-name": "matrix_name",
-  "matrix-type": "matrix_type",
-  "n-proc": 1,
-  "iter": 12,
-  "iter1": 1,
-  "iter2": 14,
-  "residual": 1.1402e-06,
-  "error": 2.383882e-07
-}
