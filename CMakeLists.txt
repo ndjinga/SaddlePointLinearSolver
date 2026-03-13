@@ -22,12 +22,12 @@ set(MY_HEADERS
 src/
 )
 
+find_package (PETSc 3.4 REQUIRED)
+
 add_library(SaddlePointLinearSolverLib SHARED ${MY_SOURCES})
 message(STATUS ${PETSC_INCLUDES})
 target_include_directories(SaddlePointLinearSolverLib PRIVATE ${PETSC_INCLUDES} ${MY_HEADERS})
 install(TARGETS SaddlePointLinearSolverLib DESTINATION lib)
-
-find_package (PETSc 3.4 REQUIRED)
 
 if( SaddlePointLinearSolver_WITH_MPI )
   message(STATUS "SaddlePointLinearSolverm requested with MPI library. Searching MPI library.")
