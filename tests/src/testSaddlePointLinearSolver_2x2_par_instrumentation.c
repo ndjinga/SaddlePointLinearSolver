@@ -34,7 +34,7 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 #include <math.h>
 
 int main( int argc, char **args ){
-	// Instrumentaiton pour mesure de temps/mémoire
+	// Instrumentation pour mesure de temps/mémoire
 	PetscLogStage load_matrix_stage, split_matrix_stage, RHS_vector_stage, linear_system_stage;
 	PetscEventPerfInfo info_load_matrix_stage, info_RHS_vector_stage, info_split_matrix_stage, info_linear_system_stage;
 	PetscOptionsSetValue( NULL, "-log_view_memory", NULL);//This is equivalent to the command line option -log_view_memory
@@ -392,21 +392,11 @@ int main( int argc, char **args ){
 	PetscPrintf(PETSC_COMM_WORLD,"L2 total Error : ||X_anal - X_num|| = %e, (remember ||X_anal||=1)\n\n", error);
 
 //##### Save the results in a JSON file
-	#include <unistd.h>
-	#include <fcntl.h>
-	#include <sys/stat.h>
-
-	char tmp_file[256];
+	FILE        *fp;
+	char tmp_file[256] = "output.log";
+	
 	PetscOptionsGetString(NULL,NULL,"-tmp_file",tmp_file,sizeof(mat_type),NULL);
-	PetscPrintf(PETSC_COMM_WORLD, "tmp_file = %s\n", tmp_file);
-
-    PetscPrintf(PETSC_COMM_WORLD, "Creating output directory tmp...\n");
-    if (access("tmp", F_OK) == -1) {
-        if (mkdir("tmp", 0777) == -1) {
-            perror("Error creating directory tmp");
-            return 1;
-        }
-    }
+	PetscPrintf(PETSC_COMM_WORLD, "Creating output directory tmp_file = %s\n", tmp_file);
 
 	double total_time = info_load_matrix_stage.time + info_split_matrix_stage.time + info_RHS_vector_stage.time + info_linear_system_stage.time;
 	double memory = info_linear_system_stage.mallocIncrease;
@@ -414,27 +404,28 @@ int main( int argc, char **args ){
 	double residual_error_ratio = residu/error;
 	int factor = 100000;
 
-	FILE* outputFile = fopen(tmp_file, "w");
-	fprintf(outputFile, "{\n");
-	fprintf(outputFile, "  \"iter\": %d,\n", iter);
-	fprintf(outputFile, "  \"iter1\": %d,\n", iter1);
-	fprintf(outputFile, "  \"iter2\": %d,\n", iter2);
-	fprintf(outputFile, "  \"residual\": %e,\n", residu);
-	fprintf(outputFile, "  \"total-error\": %e,\n", error);
-	fprintf(outputFile, "  \"pressure-error\": %e,\n", error_u);
-	fprintf(outputFile, "  \"velocity-error\": %e,\n", error_p);
-	fprintf(outputFile, "  \"matrix-load-time\": %e,\n", info_load_matrix_stage.time);
-	fprintf(outputFile, "  \"matrix-split-time\": %e,\n", info_split_matrix_stage.time);
-	fprintf(outputFile, "  \"rhs-build-time\": %e,\n", info_RHS_vector_stage.time);
-	fprintf(outputFile, "  \"solve-time\": %e,\n", info_linear_system_stage.time);
-	fprintf(outputFile, "  \"total-time\": %e,\n", total_time);
-	fprintf(outputFile, "  \"memory-consumption\": %e,\n", memory);
-	fprintf(outputFile, "  \"condition-number\": %e,\n", condition_number);
-	fprintf(outputFile, "  \"residual-error-ratio\": %e,\n", residual_error_ratio);
-	fprintf(outputFile, "  \"status\": \"%s\"\n", error < factor*residu ? "Pass" : "Fail");
-
-	fprintf(outputFile, "}\n");
-	fclose(outputFile);
+	PetscCall( PetscFOpen(PETSC_COMM_WORLD, tmp_file, "a",&fp) );
+	PetscFPrintf(PETSC_COMM_WORLD, fp, "{\n");
+	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"iter\": %d,\n", iter);
+	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"iter1\": %d,\n", iter1);
+	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"iter2\": %d,\n", iter2);
+	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"residual\": %e,\n", residu);
+	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"total-error\": %e,\n", error);
+	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"pressure-error\": %e,\n", error_u);
+	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"velocity-error\": %e,\n", error_p);
+	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"matrix-load-time\": %e,\n", info_load_matrix_stage.time);
+	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"matrix-split-time\": %e,\n", info_split_matrix_stage.time);
+	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"rhs-build-time\": %e,\n", info_RHS_vector_stage.time);
+	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"solve-time\": %e,\n", info_linear_system_stage.time);
+	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"total-time\": %e,\n", total_time);
+	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"memory-consumption\": %e,\n", memory);
+	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"condition-number\": %e,\n", condition_number);
+	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"residual-error-ratio\": %e,\n", residual_error_ratio);
+	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"status\": \"%s\"\n", error < factor*residu ? "Pass" : "Fail");
+	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"data-file-name\": \"%s\"\n", file[0]);
+	PetscFPrintf(PETSC_COMM_WORLD, fp, "}\n");
+	PetscCall( PetscFClose(PETSC_COMM_WORLD, fp) );
+	
 	PetscPrintf(PETSC_COMM_WORLD, "testOutput saved in %s\n", tmp_file);
 
 
