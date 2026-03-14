@@ -4,6 +4,7 @@ This project provides tools and scripts for testing and analyzing saddle point l
 
 The main prerequisite is PETSc. Python is optional, as well as MPI for parallel execution.
 
+## Install
 After cloning, the typical installation is done via the commands  
 ```bash
 cmake /path/to/SOURCE/DIR -DCMAKE_INSTALL_PREFIX=/path/to/INSTALL/DIR  -DCMAKE_BUILD_TYPE=Release -DSaddlePointLinearSolver_WITH_PYTHON=ON -DSaddlePointLinearSolver_WITH_TESTS=ON -DSaddlePointLinearSolver_WITH_MPI=ON -DPETSC_DIR=/path/to/PETSC/DIR -DPETSC_ARCH=arch-linux-c-opt
@@ -19,9 +20,9 @@ make install
 
 The parameter PETSC_ARCH should correspond to your PETSc installation (usually arch-linux-c-opt or arch-linux-c-opt on linux computers).
 
-## Prerequisites
+## Extra Prerequisites for curve plot and notrbook generation
 
-- Ensure that Python3 is installed and available in your environment.
+- Ensure that Python3 is installed and available in your environment. Set SaddlePointLinearSolver_WITH_PYTHON to ON 
 - The following Python packages are required:
   - `pandas` to generate and manipulate tables
   - `matplotlib` to generate plots (cpu times, memory consumption, iteration number)
@@ -41,7 +42,7 @@ CTest will execute the tests defined in the project. Result data are recorded in
 
 ## Merge Test Results
 
-After running the tests, you can merge the results into a CSV file using the `merge-results` target:
+After running the individual tests, you can merge the results into a CSV file using the `merge-results` target:
 
 ```bash
 make merge-results
@@ -66,7 +67,7 @@ This will remove all files in the `tests/results/` directory.
 To execute the performance analysis notebook and export it as a PDF, use:
 
 ```bash
-cmake --build . --target notebook
+make notebook
 ```
 
 - The notebook is located at [`tests/notebook/performance_analysis.ipynb`](tests/notebook/performance_analysis.ipynb).
@@ -75,7 +76,7 @@ cmake --build . --target notebook
 To generate figures using the dedicated Python script, use:
 
 ```bash
-cmake --build . --target generate-figures
+make generate-figures
 ```
 
 - The script is [`tests/notebook/generate_figures.py`](tests/notebook/generate_figures.py).
