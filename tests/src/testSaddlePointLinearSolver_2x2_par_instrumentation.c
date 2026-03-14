@@ -404,7 +404,7 @@ int main( int argc, char **args ){
 	int factor = 100000;
 
 	PetscPrintf(PETSC_COMM_WORLD, "Creating output file tmp_file = %s\n", tmp_file);
-	PetscCall( PetscFOpen(PETSC_COMM_WORLD, tmp_file, "a",&fp) );
+	PetscCall( PetscFOpen(PETSC_COMM_WORLD, tmp_file, "w",&fp) );
 	PetscFPrintf(PETSC_COMM_WORLD, fp, "{\n");
 	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"iter\": %d,\n", iter);
 	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"iter1\": %d,\n", iter1);
@@ -421,7 +421,7 @@ int main( int argc, char **args ){
 	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"memory-consumption\": %e,\n", memory);
 	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"condition-number\": %e,\n", condition_number);
 	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"residual-error-ratio\": %e,\n", residual_error_ratio);
-	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"status\": \"%s\"\n", error < factor*residu ? "Pass" : "Fail");
+	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"status\": \"%s\",\n", error < factor*residu ? "Pass" : "Fail");
 	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"test-id\": \"%s\"\n", tmp_file);
 	PetscFPrintf(PETSC_COMM_WORLD, fp, "}\n");
 	PetscCall( PetscFClose(PETSC_COMM_WORLD, fp) );
