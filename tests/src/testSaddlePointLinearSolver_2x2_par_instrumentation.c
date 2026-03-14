@@ -1,4 +1,4 @@
-static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Parameters : \n -f0 : matrix fileName \n -nU :number of velocity lines \n -nP : number of pressure lines \n -mat_type : PETSc matrix type \n -usePrec : boolean yes or no (default is yes) \n";
+static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Parameters : \n -f0 : matrix fileName \n -nU :number of velocity lines \n -nP : number of pressure lines \n -mat_type : PETSc matrix type \n -usePrec : boolean yes or no (default is yes) \n -tmp_file : output file name \n";
 
 /*************************************************************************************************/
 /* Parallel implementation of a new preconditioner for the linear system A_{input} X_{output} = b_{input} */
@@ -393,10 +393,9 @@ int main( int argc, char **args ){
 
 //##### Save the results in a JSON file
 	FILE        *fp;
-	char tmp_file[256] = "output.log";
+	char tmp_file[PETSC_MAX_PATH_LEN] = "./outputFile.json";
 	
-	PetscOptionsGetString(NULL,NULL,"-tmp_file",tmp_file,sizeof(mat_type),NULL);
-	PetscPrintf(PETSC_COMM_WORLD, "Creating output directory tmp_file = %s\n", tmp_file);
+	PetscOptionsGetString(NULL,NULL,"-tmp_file",tmp_file,sizeof(tmp_file),NULL);
 
 	double total_time = info_load_matrix_stage.time + info_split_matrix_stage.time + info_RHS_vector_stage.time + info_linear_system_stage.time;
 	double memory = info_linear_system_stage.mallocIncrease;
@@ -404,6 +403,7 @@ int main( int argc, char **args ){
 	double residual_error_ratio = residu/error;
 	int factor = 100000;
 
+	PetscPrintf(PETSC_COMM_WORLD, "Creating output file tmp_file = %s\n", tmp_file);
 	PetscCall( PetscFOpen(PETSC_COMM_WORLD, tmp_file, "a",&fp) );
 	PetscFPrintf(PETSC_COMM_WORLD, fp, "{\n");
 	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"iter\": %d,\n", iter);
@@ -422,7 +422,7 @@ int main( int argc, char **args ){
 	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"condition-number\": %e,\n", condition_number);
 	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"residual-error-ratio\": %e,\n", residual_error_ratio);
 	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"status\": \"%s\"\n", error < factor*residu ? "Pass" : "Fail");
-	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"data-file-name\": \"%s\"\n", file[0]);
+	PetscFPrintf(PETSC_COMM_WORLD, fp, "  \"test-id\": \"%s\"\n", tmp_file);
 	PetscFPrintf(PETSC_COMM_WORLD, fp, "}\n");
 	PetscCall( PetscFClose(PETSC_COMM_WORLD, fp) );
 	
