@@ -20,6 +20,10 @@ set (TABLES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/tables" CACHE PATH "Path to tables 
 
 # Define the path to the temporary directory used during test generation
 set (TMP_DIR "${CMAKE_CURRENT_BINARY_DIR}/tmp" CACHE PATH "Path to temporary directory")
+# Create the temporary directory used during test generation
+if(NOT EXISTS  "${CMAKE_CURRENT_BINARY_DIR}/tmp" )
+    file(MAKE_DIRECTORY "${CMAKE_CURRENT_BINARY_DIR}/tmp" )
+endif()
 
 
 # Include the generated tests file
