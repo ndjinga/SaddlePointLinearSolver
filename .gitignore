@@ -6,11 +6,13 @@ tests/data/metadata/*
 tests/test_results/*
 !tests/test_results/.gitkeep
 
-tests/tables/*
+#tests/tables/*
 !tests/tables/.gitkeep
 
-tests/notebook/figures
-tests/notebook/performance_analysis.pdf
+#tests/generated_tests.cmake
+
+#tests/notebook/figures
+#tests/notebook/performance_analysis.pdf
 
 __pycache__
 .ipynb_checkpoints
