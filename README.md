@@ -46,19 +46,8 @@ make merge-results
 
 This will create a CSV file in the `tests/tables/` directory containing the aggregated test results.
 
-## Clean Test Results (Optional)
 
-To clean previous test results, use the `clean-results` target:
-
-```bash
-make clean-results
-```
-
-This will remove all files in the `tests/results/` directory.
-
-
-
-## Notebook & Figures
+## Update Notebook & Figures
 
 To execute the performance analysis notebook and export it as a PDF, use:
 
@@ -80,6 +69,17 @@ make generate-figures
 
 **Note:**  
 The **path to the CSV data file** must be set in [`tests/notebook/plot_utils.py`](tests/notebook/plot_utils.py).## Adding more  matrices to the Project
+
+## Clean Test Results (Optional)
+
+To clean previous test results, use the `clean-results` target:
+
+```bash
+make clean-results
+```
+
+This will remove all files in the `tests/results/` directory.
+
 
 ## Directory Structure
 
