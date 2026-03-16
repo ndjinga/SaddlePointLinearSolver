@@ -71,10 +71,10 @@ def generate_tests():
             cmake_file.write(f"set(TMP_FILE ${{TMP_DIR}}/tmp_output_${{TEST_ID}}.json)\n")
 
             cmake_file.write("add_test(\n")
-            cmake_file.write("  NAME ${TEST_ID}"+f"_{n_proc}procs\n")
+            cmake_file.write("  NAME ${TEST_ID}\n")
             cmake_file.write("  COMMAND bash -c \"\n")
             cmake_file.write(f"    {command};")
-            if mode == "complete":              
+            if mode == "complete": #Collect the output result             
                 cmake_file.write( " \\\n ")
                 cmake_file.write( "   python3 ${CMAKE_SOURCE_DIR}/scripts/collect_test_data.py \\\n")
                 cmake_file.write( "      --test-id \\\"${TEST_ID}\\\" \\\n")
@@ -86,7 +86,7 @@ def generate_tests():
                 cmake_file.write( "      --data-dir \\\"${TEST_DATA_DIR}\\\" \\\n")
                 cmake_file.write( "      --test-results-dir \\\"${TEST_RESULT_DIR}\\\" \\\n")
                 cmake_file.write( "      --tmp-file \\\"${TMP_FILE}\\\"\n")
-            else:
+            else:#Do not collect the output result
                 cmake_file.write("\n")
             cmake_file.write("  \"\n)\n\n")
         return
@@ -94,7 +94,7 @@ def generate_tests():
     data_dir = data_path.resolve()
     test_results_dir.parent.mkdir(parents=True, exist_ok=True)
     with open(output_cmake_file, 'w') as cmake_file:
-        cmake_file.write(f"# Generated tests with generate_tests.py script from {input_csv_file}\n\n")
+        cmake_file.write(f"# Tests generated with generate_tests.py script from {input_csv_file}\n\n")
         cmake_file.write("enable_testing()\n\n")
         cmake_file.write(f"set(TEST_DATA_DIR {data_dir})\n")
         cmake_file.write(f"set(TEST_RESULT_DIR {test_results_dir})\n")
@@ -134,7 +134,7 @@ def generate_tests():
         for n_proc in n_proc_values:
             tid = test_id if not pd.isna(test_id) else f"{mode}_{executable}_{matrix_type}_{matrix_name}_nproc{n_proc}" + (f'_{safe_filename(option)}' if option else '')
             try:
-                add_test(tid, executable, matrix_name, matrix_type, n_proc, mode, option)
+                add_test(tid+"_"+str(n_proc)+"procs", executable, matrix_name, matrix_type, n_proc, mode, option)
             except Exception as e:
                 logger.error(f"'{tid}' not generated : {e}")
                 failure_count += 1
