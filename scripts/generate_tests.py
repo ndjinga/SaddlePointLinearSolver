@@ -71,7 +71,7 @@ def generate_tests():
             cmake_file.write(f"set(TMP_FILE ${{TMP_DIR}}/tmp_output_${{TEST_ID}}.json)\n")
 
             cmake_file.write("add_test(\n")
-            cmake_file.write("  NAME ${TEST_ID}\n")
+            cmake_file.write("  NAME ${TEST_ID}"+f"_{n_proc}procs\n")
             cmake_file.write("  COMMAND bash -c \"\n")
             cmake_file.write(f"    {command};")
             if mode == "complete":              
