@@ -34,7 +34,7 @@ add_custom_target(merge-results
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/merge_results.py
     --test-results-dir ${TEST_RESULTS_DIR}
     --tables-dir ${CMAKE_CURRENT_SOURCE_DIR}/tables
-    --output-name output
+    --output-name performance_analysis
     --reset
   COMMENT "Merge test results."
 )
