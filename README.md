@@ -14,13 +14,9 @@ cmake /path/to/SOURCE/DIR -DCMAKE_INSTALL_PREFIX=/path/to/INSTALL/DIR  -DCMAKE_B
 make
 ```  
 
-```bash
-make install
-```
-
 The parameter PETSC_ARCH should correspond to your PETSc installation (usually arch-linux-c-opt or arch-linux-c-opt on linux computers).
 
-## Extra Prerequisites for curve plot and notrbook generation
+## Extra Prerequisites for curve plot and notebook generation
 
 - Ensure that Python3 is installed and available in your environment. Set SaddlePointLinearSolver_WITH_PYTHON to ON 
 - The following Python packages are required:
