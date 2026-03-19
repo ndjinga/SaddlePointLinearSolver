@@ -1,9 +1,9 @@
-# Tests generated with generate_tests.py script from /volatile/catA/ndjinga/Logiciels/SaddlePointLinearSolver/SaddlePointLinearSolver_SRC/tests/tests_parameters.csv
+# Tests generated with generate_tests.py script in folder ${CMAKE_SOURCE_DIR}/scripts/ and tests metadata in file ${CMAKE_SOURCE_DIR}/tests/tests_parameters.csv
 
 enable_testing()
 
-set(TEST_DATA_DIR /volatile/catA/ndjinga/Logiciels/SaddlePointLinearSolver/SaddlePointLinearSolver_SRC/tests/data)
-set(TEST_RESULT_DIR /volatile/catA/ndjinga/Logiciels/SaddlePointLinearSolver/SaddlePointLinearSolver_SRC/tests/test_results)
+set(TEST_DATA_DIR   ${CMAKE_SOURCE_DIR}/tests/data)
+set(TEST_RESULT_DIR ${CMAKE_SOURCE_DIR}/tests/test_results)
 set(TEST_ID Cartesian_PolyMAC_1_vp_2procs)
 set(TMP_FILE ${TMP_DIR}/tmp_output_${TEST_ID}.json)
 add_test(

@@ -94,10 +94,11 @@ def generate_tests():
     data_dir = data_path.resolve()
     test_results_dir.parent.mkdir(parents=True, exist_ok=True)
     with open(output_cmake_file, 'w') as cmake_file:
-        cmake_file.write(f"# Tests generated with generate_tests.py script from {input_csv_file}\n\n")
+        cmake_file.write("# Tests generated with generate_tests.py script in folder ${CMAKE_SOURCE_DIR}/scripts/ and tests metadata in file ${CMAKE_SOURCE_DIR}/tests/tests_parameters.csv\n\n")
+
         cmake_file.write("enable_testing()\n\n")
-        cmake_file.write(f"set(TEST_DATA_DIR {data_dir})\n")
-        cmake_file.write(f"set(TEST_RESULT_DIR {test_results_dir})\n")
+        cmake_file.write("set(TEST_DATA_DIR   ${CMAKE_SOURCE_DIR}/tests/data)\n")#anciennement {data_dir}
+        cmake_file.write("set(TEST_RESULT_DIR ${CMAKE_SOURCE_DIR}/tests/test_results)\n")#anciennement {test_results_dir}
     
     input_csv_df = pd.read_csv(input_csv_file)
 

@@ -43,7 +43,7 @@ add_custom_target(merge-results
 add_custom_target(generate-tests
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/generate_tests.py
     --input-csv-file ${CMAKE_CURRENT_SOURCE_DIR}/tests_parameters.csv
-    --output-cmake-file ${CMAKE_CURRENT_SOURCE_DIR}/generated_tests.cmake
+    --output-cmake-file ${CMAKE_CURRENT_BINARY_DIR}/generated_tests.cmake
     --data-dir ${DATA_DIR}
     --test-results-dir ${TEST_RESULTS_DIR}
     --tmp-dir ${TMP_DIR}
