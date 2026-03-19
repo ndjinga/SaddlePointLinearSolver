@@ -98,7 +98,7 @@ def generate_tests():
 
         cmake_file.write("enable_testing()\n\n")
         cmake_file.write("set(TEST_DATA_DIR   ${CMAKE_SOURCE_DIR}/tests/data)\n")#anciennement {data_dir}
-        cmake_file.write("set(TEST_RESULT_DIR ${CMAKE_SOURCE_DIR}/tests/test_results)\n")#anciennement {test_results_dir}
+        cmake_file.write("set(TEST_RESULT_DIR ${CMAKE_BINARY_DIR}/tests/test_results)\n")#anciennement {test_results_dir}
     
     input_csv_df = pd.read_csv(input_csv_file)
 

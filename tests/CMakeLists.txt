@@ -13,10 +13,10 @@ endif()
 set (DATA_DIR "${CMAKE_CURRENT_SOURCE_DIR}/data" CACHE PATH "Path to data directory")
 
 # Define the path to the directory where test results will be stored
-set (TEST_RESULTS_DIR "${CMAKE_CURRENT_SOURCE_DIR}/test_results" CACHE PATH "Path to test_results directory")
+set (TEST_RESULTS_DIR "${CMAKE_CURRENT_BINARY_DIR}/test_results" CACHE PATH "Path to test_results directory")
 
 # Define the path to the directory containing tables for test results
-set (TABLES_DIR "${CMAKE_CURRENT_SOURCE_DIR}/tables" CACHE PATH "Path to tables directory")
+set (TABLES_DIR "${CMAKE_CURRENT_BINARY_DIR}/tables" CACHE PATH "Path to tables directory")
 
 # Define the path to the temporary directory used during test generation
 set (TMP_DIR "${CMAKE_CURRENT_BINARY_DIR}/tmp" CACHE PATH "Path to temporary directory")
@@ -33,7 +33,7 @@ include(${GENERATED_TESTS_FILE})
 add_custom_target(merge-results
   COMMAND ${Python3_EXECUTABLE} ${CMAKE_SOURCE_DIR}/scripts/merge_results.py
     --test-results-dir ${TEST_RESULTS_DIR}
-    --tables-dir ${CMAKE_CURRENT_SOURCE_DIR}/tables
+    --tables-dir ${TABLES_DIR}
     --output-name performance_analysis
     --reset
   COMMENT "Merge test results."

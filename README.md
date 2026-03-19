@@ -7,6 +7,8 @@ The main prerequisite is PETSc. Python is optional, as well as MPI for parallel 
 ## Install
 After cloning, the typical installation is done via the commands  
 ```bash
+mkdir build; cd build
+
 cmake /path/to/SOURCE/DIR -DCMAKE_INSTALL_PREFIX=/path/to/INSTALL/DIR  -DCMAKE_BUILD_TYPE=Release -DSaddlePointLinearSolver_WITH_PYTHON=ON -DSaddlePointLinearSolver_WITH_TESTS=ON -DSaddlePointLinearSolver_WITH_MPI=ON -DPETSC_DIR=/path/to/PETSC/DIR -DPETSC_ARCH=arch-linux-c-opt
 ```  
 
@@ -109,9 +111,10 @@ cmake -DDATA_DIR=/custom/data/path \
     ...
 ```
 
+## Add more matrices
 To add more  matrices to the project, copy them in the subfolder tests/data/matrices , update the file tests_parameters.csv listing the matrix names then follow the following steps:
 
-### 1. Generate New Metadata 
+### Generate New Metadata 
 
 Before running tests, ensure that metadata JSON files are generated for the simulation matrices. Use the `generate-metadata` target:
 
@@ -121,7 +124,7 @@ make generate-metadata
 
 This step only needs to be run once unless the input data changes. It will generate metadata files in the `tests/data/metadata` directory.
 
-### 2. Generate New Tests
+### Generate New Tests
 
 Generate the CMake tests from the CSV input file [tests/test_parameters.csv](tests/tests_parameters.csv) using the `generate-tests` target:
 
@@ -129,9 +132,11 @@ Generate the CMake tests from the CSV input file [tests/test_parameters.csv](tes
 make generate-tests
 ```
 
-This will create a `generated_tests.cmake` file in the `tests/` directory, which contains the `add_test` entries for the tests. **Rebuild the project after this step** to include the generated tests:
+This will create a `generated_tests.cmake` file in the `tests/` directory, which contains the `add_test` entries for the new tests. Copy this file in the source directory and then **Rebuild the project after this step** to include the newly generated tests:
 
 ```bash
+cp ./tests/generated_tests.cmake /path/to/SOURCE/DIR/tests/
+cp -R ./tests/generated_tests.cmake /path/to/SOURCE/DIR/tests/
 make
 ```
 
@@ -152,4 +157,10 @@ make merge-results
 
 This will create a CSV file in the `tests/tables/` directory containing the aggregated test results.
 
+If you wish to use these new results to update the source directory you do 
+```bash
+cp -r ./tests/test_results /path/to/SOURCE/DIR/tests/
+cp -r ./tests/table /path/to/SOURCE/DIR/tests/
+make
+```
 
