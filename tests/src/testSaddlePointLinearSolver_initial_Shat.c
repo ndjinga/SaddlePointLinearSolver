@@ -1,7 +1,11 @@
-static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Parameters : \n -f0 : matrix fileName \n -nU :number of velocity lines \n -nP : number of pressure lines \n -mat_type : PETSc matrix type \n";
+static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Parameters : \n -f0 : matrix fileName \n -nU :number of velocity lines \n -nP : number of pressure lines \n -mat_type : PETSc matrix type \n -emptyPressureRHS : right hand side vector has value zero on the pressure lines \n";
 
 /*************************************************************************************************/
 /* Sequential implementation of a new preconditioner for the linear system A_{input} X_{output} = b_{input} */
+/*
+/* Description : initial file developped by P-L B. Sequential file PC_COMPOSITE of Shur type     */
+/*               therefore restricted to 2x2 blocs.                                              */ 
+/*               Performance is good when RHS bloc pressure is empty (parameter emptyPressureRHS)*/ 
 /*                                                                                               */
 /* Input  : - Matrix A_{input}    (system matrix, loaded from a file)                            */
 /*          - Vector b_{input}    (right hand side, made up for testing)                         */
@@ -105,6 +109,8 @@ int main( int argc, char **args ){
 	Vec b_input, b_input_p, b_input_u, b_hat, X_hat, X_anal;
 	Vec X_array[2];
 	PetscScalar y_p[n_p], y_u[n_u];
+	PetscBool emptyPressureRHS = PETSC_FALSE;
+	PetscOptionsGetBool( NULL, NULL, "-emptyPressureRHS", &emptyPressureRHS, &flg);
 
 	PetscPrintf(PETSC_COMM_WORLD,"Creation of the RHS, exact and numerical solution vectors...\n");
 	VecCreate(PETSC_COMM_WORLD,&b_input);
@@ -119,11 +125,12 @@ int main( int argc, char **args ){
 	for (int i = n_u;i<n;i++){
 		y_p[i-n_u]=1.0/i;
 	}
-	for (int i = 0;i<n_u;i++){
-		y_u[i]=1.0/(i+1);
-	}
 	VecSetValues(X_anal,n_p,i_p,y_p,INSERT_VALUES);
+	if( !emptyPressureRHS )
+  	for (int i = 0;i<n_u;i++)
+  		y_u[i]=1.0/(i+1);
 	VecSetValues(X_anal,n_u,i_u,y_u,INSERT_VALUES);
+
 	VecAssemblyBegin(X_anal);
 	VecAssemblyEnd(X_anal);
 	VecNormalize( X_anal, NULL);
