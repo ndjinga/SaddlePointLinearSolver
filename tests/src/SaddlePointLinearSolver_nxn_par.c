@@ -4,6 +4,10 @@ static char help[] = "Read a PETSc matrix from a file Parameters : \n -f0 : matr
 /* Parallel implementation of a new preconditioner for the linear system A_{input} X_{output} = b_{input} */
 /* The coupling between two variables u and p displays a saddle point structure  ( M G \\ D C )  */
 /*                                                                                               */
+/* Description : Parallell file with PC_COMPOSITE of MULTIPLICATIVE type, general nxn bloc structure.*/
+/*               To do : Use of API (class SaddlePointLinearSolve) for better code factorisation */ 
+/*               No measure of condition number (minimal instrumentation)                        */ 
+/*                                                                                               */
 /* Input  : - Matrix A_{input}    (system matrix, loaded from a file)                            */
 /*          - Vector b_{input}    (right hand side, made up for testing)                         */
 /* Output : - Vector X_{output}   (unknown vector, to be determined)                             */
@@ -13,23 +17,23 @@ static char help[] = "Read a PETSc matrix from a file Parameters : \n -f0 : matr
 /*                        - b_hat (RHS of the transformed system)                                */
 /*                        - Pmat  (preconditioning matrix)                                       */
 /*                        - M submatrix u-u of A_{input}                                         */
-/*                        - G submatrix u-p of A_{input}                                                  */
-/*                        - D submatrix p-u of A_{input}                                                  */
-/*                        - C submatrix p-p of A_{input}                                                  */
+/*                        - G submatrix u-p of A_{input}                                         */
+/*                        - D submatrix p-u of A_{input}                                         */
+/*                        - C submatrix p-p of A_{input}                                         */
 /*                        - R submatrix (neither p nor u lines) - (neither p nor u columns) of A_{input}  */
 /*                                                                                               */
-/*                                 * M  G  X1 *                                                     */
-/*                        A     = *  D  C  X2  *                                                    */
-/*                                 * X3 X4 R  *                                                     */
+/*                                 * M  G  X1 *                                                  */
+/*                        A     = *  D  C  X2  *                                                 */
+/*                                 * X3 X4 R  *                                                  */
 /*                                                                                               */
-/*                                 * M   G_hat  X1*                                                   */
-/*                        A_hat = * -D   C_hat  X2 *
-/*                                 * X3  X4_hat R *                                               */
+/*                                 * M   G_hat  X1*                                              */
+/*                        A_hat = * -D   C_hat  X2 *                                             */
+/*                                 * X3  X4_hat R *                                              */
 /*                                                                                               */
-/*                                 *2 diag(M)  G_hat*                                           */
+/*                                 *2 diag(M)  G_hat*                                            */
 /*                        Pmat  = *                   *                                          */
-/*                                 *0          C_hat*                                           */
-//*                                                                                               */
+/*                                 *0          C_hat*                                            */
+//*                                                                                              */
 /*************************************************************************************************/
 
 #include <petscis.h>

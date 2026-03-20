@@ -2,6 +2,10 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 
 /*************************************************************************************************/
 /* Sequential implementation of a new preconditioner for the linear system A_{input} X_{output} = b_{input} */
+/*
+/* Description : initial file developped by M.N. Sequential file PC_COMPOSITE of MULTIPLICATIVE type*/
+/*               not restricted to 2x2 blocs unlike Schur composite pc (see Shat approach).      */ 
+/*               Performance is good even when RHS bloc pressure is empty unlike Shat approach   */ 
 /*                                                                                               */
 /* Input  : - Matrix A_{input}    (system matrix, loaded from a file)                            */
 /*          - Vector b_{input}    (right hand side, made up for testing)                         */

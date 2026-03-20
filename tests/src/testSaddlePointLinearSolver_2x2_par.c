@@ -3,6 +3,10 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 /*************************************************************************************************/
 /* Parallel implementation of a new preconditioner for the linear system A_{input} X_{output} = b_{input} */
 /*                                                                                               */
+/* Description : Parallell file with PC_COMPOSITE of MULTIPLICATIVE type, implemented for 2x2 blocs.*/
+/*               To do : Use of API (class SaddlePointLinearSolve) for better code factorisation */ 
+/*               No measure of condition number (minimal instrumentation)                        */ 
+/*                                                                                               */
 /* Input  : - Matrix A_{input}    (system matrix, loaded from a file)                            */
 /*          - Vector b_{input}    (right hand side, made up for testing)                         */
 /* Output : - Vector X_{output}   (unknown vector, to be determined)                              */
