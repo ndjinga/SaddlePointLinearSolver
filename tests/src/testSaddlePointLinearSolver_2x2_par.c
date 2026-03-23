@@ -2,6 +2,7 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 
 /*************************************************************************************************/
 /* Parallel implementation of a new preconditioner for the linear system A_{input} X_{output} = b_{input} */
+/*          Find a block triangular matrix T and perform the change of variables  X_hat = T^{-1}X, A_hat = (A_{input}T)T^{-1} */
 /*                                                                                               */
 /* Description : Parallell file with PC_COMPOSITE of MULTIPLICATIVE type, implemented for 2x2 blocs.*/
 /*               To do : Use of API (class SaddlePointLinearSolve) for better code factorisation */ 
@@ -9,7 +10,7 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 /*                                                                                               */
 /* Input  : - Matrix A_{input}    (system matrix, loaded from a file)                            */
 /*          - Vector b_{input}    (right hand side, made up for testing)                         */
-/* Output : - Vector X_{output}   (unknown vector, to be determined)                              */
+/* Output : - Vector X_{output}   (unknown vector, to be determined)                             */
 /*                                                                                               */
 /* Auxilliary variables : - A_hat (transformed matrix)                                           */
 /*                        - X_hat (unknown of the transformed system)                            */
@@ -23,13 +24,13 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 /*                        A     = *       *                                                      */
 /*                                 *D   C*                                                       */
 /*                                                                                               */
-/*                                 *M     G_hat*             G_hat=G - M*D_M_inv*G                */
-/*                        A_hat = *             *                                                 */
-/*                                 *D     C_hat*             C_hat=C - D*D_M_inv*G                */
+/*                                 *M     G_hat*             G_hat=G - M*D_M_inv*G               */
+/*                        A_hat = *             *                                                */
+/*                                 *D     C_hat*             C_hat=C - D*D_M_inv*G               */
 /*                                                                                               */
-/*                                 *2 diag(M)  G_hat*                                           */
+/*                                 *2 diag(M)  G_hat*                                            */
 /*                        Pmat  = *                   *                                          */
-/*                                 *0          C_hat*                                           */
+/*                                 *0          C_hat*                                            */
 /*                                                                                               */
 /*************************************************************************************************/
 

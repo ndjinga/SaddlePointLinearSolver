@@ -1,7 +1,9 @@
 static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Parameters : \n -f0 : matrix fileName \n -nU :number of velocity lines \n -nP : number of pressure lines \n -mat_type : PETSc matrix type \n";
 
 /*************************************************************************************************/
-/* Sequential implementation of a new preconditioner for the linear system A_{input} X_{output} = b_{input} */
+/* Sequential implementation of a transform-then-solve preconditioner for the linear system A_{input} X_{output} = b_{input} */
+/*            Find a block triangular matrix T and perform the change of variables  X_hat = T^{-1}X, A_hat = (A_{input}T)T^{-1} */
+/*            Pressure and velocity unknowns are swaped in the transform for convenience reasons */ 
 /*
 /* Description : initial file developped by M.N. Sequential file PC_COMPOSITE of MULTIPLICATIVE type*/
 /*               not restricted to 2x2 blocs unlike Schur composite pc (see Shat approach).      */ 
@@ -9,11 +11,11 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 /*                                                                                               */
 /* Input  : - Matrix A_{input}    (system matrix, loaded from a file)                            */
 /*          - Vector b_{input}    (right hand side, made up for testing)                         */
-/* Output : - Vector X_{output}   (unknown vector, to be determined                              */
+/* Output : - Vector X_{output}   (unknown vector, to be determined)                              */
 /*                                                                                               */
 /* Auxilliary variables : - A_hat (transformed matrix)                                           */
 /*                        - X_hat (unknown of the transformed system)                            */
-/*                        - b_hat (RHS of the transformed system)                                */
+/*                        - b_hat (RHS of the transformed system obtained by swapping pressure and velocity)*/
 /*                        - Pmat  (preconditioning matrix)                                       */
 /*                        - M top    left  submatrix of A_{input}                                */
 /*                        - G top    right submatrix of A_{input}                                */
