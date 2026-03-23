@@ -88,9 +88,18 @@ int splitPETScMatrix2x2(Mat A_input, PetscInt n_u, PetscInt n_p, Mat * M, Mat * 
 //##### Definition of the right hand side to test the preconditioner
 void buildRHSVector( Mat A_input, PetscInt n_u, PetscInt n_p, Vec * X_anal, Vec * b_input)
 {
-	PetscScalar values[n_u+n_p];//To store the values
-	PetscInt    indices[n_u+n_p];//To store the indices
+	PetscMPIInt    size;        /* size of communicator */
+	PetscMPIInt    rank;        /* processor rank */
+	MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+	MPI_Comm_size(PETSC_COMM_WORLD,&size);
+	PetscInt irow_min, irow_max;//min and max indices of rows stored locally on this process
+	MatGetOwnershipRange( A_input, &irow_min, &irow_max);
 
+	PetscScalar *values;//Pointer to the storage of the vector values
+	PetscInt    *indices;//To store the indices
+	PetscMalloc1(irow_max-irow_min, &values);
+	PetscMalloc1(irow_max-irow_min, &indices);
+	 
 	PetscPrintf(PETSC_COMM_WORLD,"Creation of the RHS, exact and numerical solution vectors...\n");
 	VecCreate(PETSC_COMM_WORLD,b_input);
 	VecSetSizes(*b_input,PETSC_DECIDE,n_u+n_p);
@@ -98,18 +107,21 @@ void buildRHSVector( Mat A_input, PetscInt n_u, PetscInt n_p, Vec * X_anal, Vec 
 
 	VecDuplicate(*b_input,X_anal);//X_anal will store the exact solution
 	
-	for (int i = 0; i<n_u+n_p; i++){
-		values[i] = 1.0/(i+1);//valeur second membre à imposer ici
-		indices[i]=i;
+	for (int i = 0; i<irow_max-irow_min; i++){
+		values[i] = 1.0/(irow_min+i+1);//valeur second membre à imposer ici
+		indices[i]=irow_min+i;
 	}
 	
-	VecSetValues(*X_anal,n_u+n_p,indices,values,INSERT_VALUES);
+	VecSetValues(*X_anal,irow_max-irow_min,indices,values,INSERT_VALUES);
 	VecAssemblyBegin(*X_anal);
 	VecAssemblyEnd(*X_anal);
 	VecNormalize( *X_anal, NULL);
 	MatMult( A_input, *X_anal, *b_input);
 
 	PetscPrintf(PETSC_COMM_WORLD,"... vectors created \n");	
+	
+	PetscFree(values);
+	PetscFree(indices);
 }
 
 //##### Application of the transformation A -> A_hat
