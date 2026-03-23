@@ -43,9 +43,8 @@ int main( int argc, char **args ){
 	PetscMPIInt    rank;        /* processor rank */
 	MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
 	MPI_Comm_size(PETSC_COMM_WORLD,&size);
-	PetscErrorCode ierr=0;
 
-	PetscCheck( size == 1, PETSC_COMM_WORLD, ierr, "Incorrect number of procs nprocs = %d.\n !!! This is a sequential implementation !!! \n", size);
+	PetscCheck( size == 1, PETSC_COMM_WORLD, PETSC_ERR_ARG_SIZ, "Incorrect number of procs nprocs = %d.\n !!! This is a sequential implementation !!! \n", size);
 
 //##### Load the matrix A in the file given in the command line
 	char file[1][PETSC_MAX_PATH_LEN], mat_type[256]; // File to load, matrix type
@@ -83,8 +82,8 @@ int main( int argc, char **args ){
 	MatGetSize( A, &nrows, &ncolumns);
 	PetscInt i_p[n_p],i_u[n_u];
 
-	PetscCheck( nrows == ncolumns, PETSC_COMM_WORLD, ierr, "Matrix is not square !!!\n");
-	PetscCheck( n == ncolumns, PETSC_COMM_WORLD, ierr, "Inconsistent data : the matrix has %d lines but only %d velocity lines and %d pressure lines declared\n", ncolumns, n_u,n_p);
+	PetscCheck( nrows == ncolumns, PETSC_COMM_WORLD, PETSC_ERR_ARG_SIZ, "Matrix is not square !!!\n");
+	PetscCheck( n == ncolumns, PETSC_COMM_WORLD, PETSC_ERR_ARG_SIZ, "Inconsistent data : the matrix has %d lines but only %d velocity lines and %d pressure lines declared\n", ncolumns, n_u,n_p);
 	PetscPrintf(PETSC_COMM_WORLD,"The matrix has %d lines : %d velocity lines and %d pressure lines\n", n, n_u,n_p);
 	PetscPrintf(PETSC_COMM_SELF,"Matrix size : %d x %d, n_u = %d, n_p = %d \n", nrows, ncolumns, n_u, n_p);
 	
@@ -343,7 +342,7 @@ int main( int argc, char **args ){
 	VecNorm( X_output, NORM_2, &error);
 	PetscPrintf(PETSC_COMM_WORLD,"L2 Error : ||X_anal - X_num|| = %e, (remember ||X_anal||=1)\n", error);
 
-	PetscCheck( error < 1.e-5, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high\n");
+	PetscCheck( error < 1.e-5, PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED, "Linear system did not return accurate solution. Error is too high\n");
 	
 //##### Cleaning of the memory
 	MatDestroy(&A);
@@ -365,5 +364,5 @@ int main( int argc, char **args ){
 	PetscFree(subksp);
 	
 	PetscFinalize();
-	return ierr;
+	return 0;
 }

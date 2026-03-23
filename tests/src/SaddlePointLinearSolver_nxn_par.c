@@ -54,7 +54,6 @@ int main( int argc, char **args ){
 	PetscMPIInt    rank;        /* rank of processor */
 	MPI_Comm_rank(PETSC_COMM_WORLD,&rank);/* Get rank of processor */
 	MPI_Comm_size(PETSC_COMM_WORLD,&size);/* Get size of communicator */
-	PetscErrorCode ierr=0;
 
 //##### Load the matrix A contained in the file given in the command line
 	char file[1][PETSC_MAX_PATH_LEN], mat_type[256]; // File to load, matrix type
@@ -93,7 +92,7 @@ int main( int argc, char **args ){
 
 	MatGetOwnershipRange( A_input, &irow_min, &irow_max);
 	MatGetSize( A_input, &nrows, &ncolumns);
-	PetscCheck( nrows == ncolumns, PETSC_COMM_WORLD, ierr, "Matrix is not square !!!\n");
+	PetscCheck( nrows == ncolumns, PETSC_COMM_WORLD, PETSC_ERR_ARG_SIZ, "Matrix is not square !!!\n");
 	PetscOptionsGetInt(NULL,NULL,"-nU",&n_u,setNbU);
 	PetscOptionsGetInt(NULL,NULL,"-nP",&n_p,setNbP);
 
@@ -126,8 +125,8 @@ int main( int argc, char **args ){
 	ISGetSize(is_neither_U_nor_P, &n_neither_U_nor_P);//Total number of remaining lines.
 	ISGetSize(is_intersect, &n_intersect);//n_intersect should equal zero
 	
-	PetscCheck( n_intersect == 0, PETSC_COMM_WORLD, ierr, "is_U and is_P should not intersect (common row indices for pressure and velocity) !!!\n");	
-	PetscCheck( n_u+n_p + n_neither_U_nor_P == ncolumns, PETSC_COMM_WORLD, ierr, "Inconsistent data : the matrix has %d lines but %d velocity lines, %d pressure lines and %d remaining lines declared : n_u+n_p +n_neither_U_nor_P=%d, is not equal to the number of lines %d\n", ncolumns, n_u,n_p,n_neither_U_nor_P,n_u+n_p +n_neither_U_nor_P,ncolumns);
+	PetscCheck( n_intersect == 0, PETSC_COMM_WORLD, PETSC_ERR_ARG_SIZ, "is_U and is_P should not intersect (common row indices for pressure and velocity) !!!\n");	
+	PetscCheck( n_u+n_p + n_neither_U_nor_P == ncolumns, PETSC_COMM_WORLD, PETSC_ERR_ARG_SIZ, "Inconsistent data : the matrix has %d lines but %d velocity lines, %d pressure lines and %d remaining lines declared : n_u+n_p +n_neither_U_nor_P=%d, is not equal to the number of lines %d\n", ncolumns, n_u,n_p,n_neither_U_nor_P,n_u+n_p +n_neither_U_nor_P,ncolumns);
 
 	PetscPrintf(PETSC_COMM_WORLD,"-nU and -nP not set (isU and isP set ?) so possibly non contiguous velocity and pressure lines");	
 	PetscPrintf(PETSC_COMM_SELF,"Process %d local rows : irow_min = %d, irow_max = %d\n", rank, irow_min, irow_max);
@@ -535,7 +534,7 @@ int main( int argc, char **args ){
 	VecNorm( X_output, NORM_2, &error);
 	PetscPrintf(PETSC_COMM_WORLD,"L2 total Error : ||X_anal - X_num|| = %e, (remember ||X_anal||=1)\n", error);
 
-	PetscCheck( error < 100*residu, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high compared to residual (e>100*r) : e=%e, r=%e\n", error, residu);
+	PetscCheck( error < 100*residu, PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED, "Linear system did not return accurate solution. Error is too high compared to residual (e>100*r) : e=%e, r=%e\n", error, residu);
 	
 //##### Cleaning of the code
 	MatDestroy(&M);
@@ -567,5 +566,5 @@ int main( int argc, char **args ){
 	VecScatterDestroy(&scat);
 
 	PetscFinalize();
-	return ierr;
+	return 0;
 }

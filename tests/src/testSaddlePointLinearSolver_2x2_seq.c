@@ -44,7 +44,6 @@ int main( int argc, char **args ){
 	MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
 	MPI_Comm_size(PETSC_COMM_WORLD,&size);
 	PetscInt n_u, n_p, n;//Total number of velocity and pressure lines. n = n_u+ n_p
-	PetscErrorCode ierr=0;
 	char file[1][PETSC_MAX_PATH_LEN], mat_type[256]; // File to load, matrix type
 	Mat A_input, A_hat, Pmat;
 	Mat M, G, D, C;
@@ -54,7 +53,7 @@ int main( int argc, char **args ){
 	Vec v;
 	double error;
 	
-	PetscCheck( size == 1, PETSC_COMM_WORLD, ierr, "Incorrect number of procs nprocs = %d.\n !!! This is a sequential implementation !!! \n", size);
+	PetscCheck( size == 1, PETSC_COMM_WORLD, PETSC_ERR_ARG_SIZ, "Incorrect number of procs nprocs = %d.\n !!! This is a sequential implementation !!! \n", size);
 
 	PetscBool flg;
 	PetscOptionsGetString(NULL,NULL,"-f0",file[0],PETSC_MAX_PATH_LEN,&flg);
@@ -190,7 +189,7 @@ int main( int argc, char **args ){
 	getSolutionFromXhat(G, v, X_hat, &X_output, &X_u, &X_p, is_U, is_P);
 	
 	error = computeErrorAndCheck( X_anal, X_output, is_U, is_P, X_u, X_p);	
-	PetscCheck( error < 1e6*residu, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high compared to residual (e>1e6*r) : e=%e, r=%e\n", error, residu);
+	PetscCheck( error < 1e6*residu, PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED, "Linear system did not return accurate solution. Error is too high compared to residual (e>1e6*r) : e=%e, r=%e\n", error, residu);
 	
 //##### Cleaning of the memory
 	MatDestroy(&A_input);
@@ -216,5 +215,5 @@ int main( int argc, char **args ){
 	PetscFree(kspArray);
 	
 	PetscFinalize();
-	return ierr;
+	return 0;
 }

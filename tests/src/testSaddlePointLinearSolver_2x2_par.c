@@ -44,7 +44,6 @@ int main( int argc, char **args ){
 	PetscMPIInt    rank;        /* processor rank */
 	MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
 	MPI_Comm_size(PETSC_COMM_WORLD,&size);
-	PetscErrorCode ierr=0;
 
 //##### Load the matrix A contained in the file given in the command line
 	char file[1][PETSC_MAX_PATH_LEN], mat_type[256]; // File to load, matrix type
@@ -95,8 +94,8 @@ int main( int argc, char **args ){
 	PetscInt nb_velocity_lines = irow_min <= n_u ? max_velocity_lines - irow_min : 0;
 	PetscInt nb_local_lines = irow_max - irow_min; 
 
-	PetscCheck( nrows == ncolumns, PETSC_COMM_WORLD, ierr, "Matrix is not square !!!\n");
-	PetscCheck( n == ncolumns, PETSC_COMM_WORLD, ierr, "Inconsistent data : the matrix has %d lines but only %d velocity lines and %d pressure lines declared\n", ncolumns, n_u,n_p);
+	PetscCheck( nrows == ncolumns, PETSC_COMM_WORLD, PETSC_ERR_ARG_SIZ, "Matrix is not square !!!\n");
+	PetscCheck( n == ncolumns, PETSC_COMM_WORLD, PETSC_ERR_ARG_SIZ, "Inconsistent data : the matrix has %d lines but only %d velocity lines and %d pressure lines declared\n", ncolumns, n_u,n_p);
 	PetscPrintf(PETSC_COMM_WORLD,"The matrix has %d lines : %d velocity lines and %d pressure lines\n", n, n_u,n_p);
 	PetscPrintf(PETSC_COMM_SELF,"Process %d has %d local rows : irow_min = %d, irow_max = %d, min_pressure_lines = %d, max_velocity_lines = %d, nb_pressure_lines = %d, nb_velocity_lines = %d \n", rank, nb_local_lines, irow_min, irow_max, min_pressure_lines, max_velocity_lines, nb_pressure_lines, nb_velocity_lines);
 	
@@ -357,7 +356,7 @@ int main( int argc, char **args ){
 	error=sqrt(error_u*error_u+error_p*error_p);
 	PetscPrintf(PETSC_COMM_WORLD,"L2 total Error : ||X_anal - X_num|| = %e, (remember ||X_anal||=1)\n\n", error);
 
-	PetscCheck( error < 1e6*residu, PETSC_COMM_WORLD, ierr, "Linear system did not return accurate solution. Error is too high compared to residual (e>1e6*r) : e=%e, r=%e\n", error, residu);
+	PetscCheck( error < 1e6*residu, PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED, "Linear system did not return accurate solution. Error is too high compared to residual (e>1e6*r) : e=%e, r=%e\n", error, residu);
 
 //##### Save the results in a JSON file
 	#include <unistd.h>
@@ -409,5 +408,5 @@ int main( int argc, char **args ){
 	VecScatterDestroy(&scat);
 
 	PetscFinalize();
-	return ierr;
+	return 0;
 }
