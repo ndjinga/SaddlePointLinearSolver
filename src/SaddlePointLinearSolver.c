@@ -20,7 +20,6 @@ void loadPETScMat(char* file, char* mat_type, Mat * A, PetscInt n_u, PetscInt n_
 	MatCreate(PETSC_COMM_WORLD, A);
 	MatSetType(*A,mat_type);
 	MatLoad(*A,viewer);
-	PetscViewerDestroy(&viewer);
 
 	if( size>1)
 	    if( rank == 0)
@@ -29,6 +28,8 @@ void loadPETScMat(char* file, char* mat_type, Mat * A, PetscInt n_u, PetscInt n_
 	        MatSetSizes( *A, (n-n_u)/(size-1), (n-n_u)/(size-1), n, n);
 
 	PetscPrintf(PETSC_COMM_WORLD,"... matrix Loaded \n");	
+
+	PetscViewerDestroy(&viewer);
 }
 
 //####	Decompose the matrix A_input into 4 blocks M, G, D, C
@@ -125,52 +126,65 @@ void buildRHSVector( Mat A_input, PetscInt n_u, PetscInt n_p, Vec * X_anal, Vec 
 }
 
 //##### Application of the transformation A -> A_hat
-void transformSaddlePointMatrix( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * G_hat, Mat * diag_2M, Vec * v, int n_u)
+void transformSaddlePointMatrix( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Vec * v)
 {
 	PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix...\n");
 
-	Mat D_M_inv_G, Mat_array[4];
-
-	Mat_array[0]=M;//
+	Vec v_redistributed;
+	Mat D_M_inv_G, C_hat, G_hat, diag_2M, Mat_array[4];
+	VecScatter scat;//tool to redistribute a vector on the processors
+	IS is_to, is_from;
+	PetscInt col_min, col_max;
 
 	//Extraction of the diagonal of M
 	MatCreateVecs(M,NULL,v);//v has the size of M
 	MatGetDiagonal(M,*v);
 
 	//Creation of matrix 2*diag(M). Why not use MatCreateDiagonal ???
-	MatCreateConstantDiagonal(PETSC_COMM_WORLD, PETSC_DECIDE, PETSC_DECIDE, n_u, n_u, 2, diag_2M);
-	MatConvert(*diag_2M,  MATAIJ, MAT_INPLACE_MATRIX, diag_2M);
-	MatDiagonalScale(*diag_2M, *v, NULL);//store 2*diagonal part of M
+	MatDuplicate(M, MAT_DO_NOT_COPY_VALUES, &diag_2M);
+	MatEliminateZeros(diag_2M, PETSC_TRUE);
+	MatDiagonalSet(diag_2M, *v,  INSERT_VALUES);
+	MatScale(diag_2M,2);//store 2*diagonal part of M
 	VecReciprocal(*v);//Must first check that all the coefficients are non zero
 	
 	// Creation of D_M_inv_G = D_M_inv*G
 	MatDuplicate(G,MAT_COPY_VALUES,&D_M_inv_G);//D_M_inv_G contains G
-	MatDiagonalScale( D_M_inv_G, *v, NULL);//D_M_inv_G contains D_M_inv*G
+	MatCreateVecs(D_M_inv_G,NULL,&v_redistributed);//v_redistributed has the parallel distribution of D_M_inv_G
+	VecGetOwnershipRange(*v,&col_min,&col_max);
+	ISCreateStride(PETSC_COMM_WORLD, col_max-col_min, col_min, 1, &is_from);
+	VecGetOwnershipRange(v_redistributed,&col_min,&col_max);
+	ISCreateStride(PETSC_COMM_WORLD, col_max-col_min, col_min, 1, &is_to);
+	VecScatterCreate(*v,is_from,v_redistributed,is_to,&scat);
+	VecScatterBegin(scat, *v, v_redistributed,INSERT_VALUES,SCATTER_FORWARD);
+	VecScatterEnd(  scat, *v, v_redistributed,INSERT_VALUES,SCATTER_FORWARD);
+	MatDiagonalScale( D_M_inv_G, v_redistributed, NULL);//D_M_inv_G contains D_M_inv*G
 
 	// Creation of C_hat
-	MatMatMult(D,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,C_hat);//C_hat contains D*D_M_inv*G
-	MatAYPX(*C_hat,-1.0,C,SUBSET_NONZERO_PATTERN);//C_hat contains C - D*D_M_inv*G
-	Mat_array[3]=*C_hat;//
+	MatMatMult(D,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&C_hat);//C_hat contains D*D_M_inv*G
+	MatAYPX(C_hat,-1.0,C,SUBSET_NONZERO_PATTERN);//C_hat contains C - D*D_M_inv*G
 
 	// Creation of G_hat
-	MatMatMult(M,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,G_hat);//G_hat contains M*D_M_inv*G
-	MatAYPX(*G_hat,-1.0,G,UNKNOWN_NONZERO_PATTERN);//G_hat contains G - M*D_M_inv*G
-	Mat_array[1]=*G_hat;//
+	MatMatMult(M,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&G_hat);//G_hat contains M*D_M_inv*G
+	MatAYPX(G_hat,-1.0,G,UNKNOWN_NONZERO_PATTERN);//G_hat contains G - M*D_M_inv*G
 
-	// Creation of -D
-	Mat_array[2]=D;//
+	//Creation of global matrices using MatCreateNest
+	Mat_array[3]=C_hat;//Top left block of A_hat
+	Mat_array[2]=D;//Top right block of A_hat
+	Mat_array[1]=G_hat;//Bottom left block of A_hat
+	Mat_array[0]=M;//Bottom left block of A_hat
 
 	// Creation of A_hat = reordered A_input
 	MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,A_hat);
 
 	// Creation of Pmat
-	Mat_array[0]=*diag_2M;
-	Mat_array[1]=NULL;//Cancel top right block
+	Mat_array[0]=diag_2M;
 	MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,Pmat);
 
 	PetscPrintf(PETSC_COMM_WORLD,"... matrix transformed \n");	
 
 	MatDestroy(&D_M_inv_G);
+	VecScatterDestroy(&scat);
+	VecDestroy(&v_redistributed);
 }
 
 //##### Compute X from X_hat
@@ -193,7 +207,7 @@ void getSolutionFromXhat(Mat G, Vec v, Vec X_hat, Vec * X_output, Vec * X_u, Vec
 	X_array[0] = *X_u;
 	X_array[1] = *X_p;
 	
-	//VecCreateNest( PETSC_COMM_WORLD, 2, NULL, X_array, &X_output);//This generate an error message : "Nest vector argument 3 not setup "
+	//VecCreateNest( PETSC_COMM_WORLD, 2, IS_array, X_output_array, &X_output);//This generate an error message : "Nest vector argument 3 not setup "
 	VecConcatenate(2, X_array, X_output, NULL);
 }
 
@@ -216,6 +230,8 @@ double computeErrorAndCheck( Vec X_anal, Vec X_output, IS is_U, IS is_P, Vec X_u
 	VecAXPY(X_output, -1, X_anal);
 	VecNorm( X_output, NORM_2, &error);
 	PetscPrintf(PETSC_COMM_WORLD,"L2 Error : ||X_anal - X_num|| = %e, (remember ||X_anal||=1)\n", error);
+
+	PetscCheck( error < 1e-4, PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED, "Linear system did not return accurate solution. Error is too high compared to residual (e>1e-4) : e=%e\n", error);
 
 	return error;
 }

@@ -47,7 +47,6 @@ int main( int argc, char **args ){
 	char file[1][PETSC_MAX_PATH_LEN], mat_type[256]; // File to load, matrix type
 	Mat A_input, A_hat, Pmat;
 	Mat M, G, D, C;
-	Mat C_hat, G_hat, diag_2M;
 	IS is_U,is_P;
 	Vec b_input, X_hat, X_anal;
 	Vec v;
@@ -72,8 +71,7 @@ int main( int argc, char **args ){
 
 	VecDuplicate(b_input,&X_hat);// X_hat will store the numerical solution of the transformed system
 
-	transformSaddlePointMatrix(M,G,D,C,&A_hat,&Pmat, &C_hat, &G_hat, &diag_2M, &v, n_u);
-
+	transformSaddlePointMatrix(M,G,D,C,&A_hat,&Pmat,&v);
 
 //##### Calling KSP solver and monitor convergence
 	KSP ksp, *kspArray;
@@ -96,8 +94,8 @@ int main( int argc, char **args ){
 	PCSetType(pc,pc_type);
 	if( strcmp(pc_type , PCFIELDSPLIT)==0 ){
 		PCFieldSplitSetType(pc, pc_composite_type);
-		PCFieldSplitSetIS(pc, "0",is_P);
-		PCFieldSplitSetIS(pc, "1",is_U);
+		PCFieldSplitSetIS(pc, "1",is_P);
+		PCFieldSplitSetIS(pc, "0",is_U);
 		PCFieldSplitGetSubKSP( pc, &nblocks, &kspArray);
 		KSPSetType( kspArray[0], KSPPREONLY);
 		KSPSetType( kspArray[1], KSPPREONLY);
@@ -127,7 +125,8 @@ int main( int argc, char **args ){
 	KSPSetUp(ksp);
 	PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system...\n");
 	//VecView(X_hat, PETSC_VIEWER_STDOUT_WORLD );
-	KSPSolve(ksp,b_input,X_hat);
+
+	PetscCall(KSPSolve(ksp,b_input,X_hat));
 
 	PCFieldSplitGetType(pc, &pc_composite_type);
 	KSPGetType(ksp,&ksp_type);
@@ -196,12 +195,9 @@ int main( int argc, char **args ){
 	MatDestroy(&A_hat);
 	MatDestroy(&Pmat);
 	MatDestroy(&M);
-	MatDestroy(&G_hat);
-	MatDestroy(&C_hat);
 	MatDestroy(&D);	
 	MatDestroy(&G);
 	MatDestroy(&C);
-	MatDestroy(&diag_2M);
 
 	VecDestroy(&b_input);
 	VecDestroy(&X_hat);

@@ -400,9 +400,12 @@ int main( int argc, char **args ){
 	VecDestroy(&X_hat);
 	VecDestroy(&X_anal);
 	VecDestroy(&v);
-
+	VecDestroy(&v_redistributed);
+	
 	ISDestroy(&is_U);
 	ISDestroy(&is_P);
+	ISDestroy(&is_to);
+	ISDestroy(&is_from);
 
 	KSPDestroy(&ksp);
 	VecScatterDestroy(&scat);
