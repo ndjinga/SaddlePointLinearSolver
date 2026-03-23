@@ -1,7 +1,9 @@
 static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Parameters : \n -f0 : matrix fileName \n -nU :number of velocity lines \n -nP : number of pressure lines \n -mat_type : PETSc matrix type \n -usePrec : boolean yes or no (default is yes) \n";
 
 /*************************************************************************************************/
-/* Sequential implementation of a new preconditioner for the linear system A_{input} X_{output} = b_{input} */
+/* Sequential implementation of a transform-then-solve preconditioner for the linear system A_{input} X_{output} = b_{input} */
+/*            Find a block triangular matrix T and perform the change of variables  X_hat = T^{-1}X, A_hat = (A_{input}T)T^{-1} */
+/*            Pressure and velocity unknowns are swaped in the transform for convenience reasons */ 
 /*                                                                                               */
 /* Description : Sequential file with PC_COMPOSITE of MULTIPLICATIVE type, not restricted to 2x2 blocs.*/
 /*               Use of API (class SaddlePointLinearSolve) for better code factorisation         */ 
@@ -9,11 +11,10 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 /*                                                                                               */
 /* Input  : - Matrix A_{input}    (system matrix, loaded from a file)                            */
 /*          - Vector b_{input}    (right hand side, made up for testing)                         */
-/* Output : - Vector X_{output}   (unknown vector, to be determined                              */
+/* Output : - Vector X_{output}   (unknown vector, to be determined)                              */
 /*                                                                                               */
 /* Auxilliary variables : - A_hat (transformed matrix)                                           */
 /*                        - X_hat (unknown of the transformed system)                            */
-/*                        - b_hat (RHS of the transformed system)                                */
 /*                        - Pmat  (preconditioning matrix)                                       */
 /*                        - M top    left  submatrix of A_{input}                                */
 /*                        - G top    right submatrix of A_{input}                                */
@@ -24,9 +25,9 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 /*                        A     = *       *                                                      */
 /*                                 *D   C*                                                       */
 /*                                                                                               */
-/*                                 *M     G_hat*             G_hat=G - M*D_M_inv*G                */
-/*                        A_hat = *             *                                                 */
-/*                                 *D     C_hat*             C_hat=C - D*D_M_inv*G                */
+/*                                 *M     G_hat*             G_hat=G - M*D_M_inv*G               */
+/*                        A_hat = *             *                                                */
+/*                                 *D     C_hat*             C_hat=C - D*D_M_inv*G               */
 /*                                                                                               */
 /*                                 *2 diag(M)     0  *                                           */
 /*                        Pmat  = *                   *                                          */
@@ -42,13 +43,14 @@ int main( int argc, char **args ){
 	PetscMPIInt    rank;        /* processor rank */
 	MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
 	MPI_Comm_size(PETSC_COMM_WORLD,&size);
+	PetscInt n_u, n_p, n;//Total number of velocity and pressure lines. n = n_u+ n_p
 	PetscErrorCode ierr=0;
 	char file[1][PETSC_MAX_PATH_LEN], mat_type[256]; // File to load, matrix type
 	Mat A_input, A_hat, Pmat;
 	Mat M, G, D, C;
 	Mat C_hat, G_hat, diag_2M;
 	IS is_U,is_P;
-	Vec b_input, b_input_p, b_input_u, b_hat, X_hat, X_anal;
+	Vec b_input, X_hat, X_anal;
 	Vec v;
 	double error;
 	
@@ -59,27 +61,15 @@ int main( int argc, char **args ){
 	PetscStrcpy(mat_type,MATAIJ);// Default value for PETSc Matrix type
 	PetscOptionsGetString(NULL,NULL,"-mat_type",mat_type,sizeof(mat_type),NULL);
 
-	loadPETScMat( file[0], mat_type, &A_input, size);
-	
-	PetscInt nrows, ncolumns;//Total number of rows and columns of A_input
-	PetscInt n_u, n_p, n;//Total number of velocity and pressure lines. n = n_u+ n_p
 
 	PetscOptionsGetInt(NULL,NULL,"-nU",&n_u,NULL);
 	PetscOptionsGetInt(NULL,NULL,"-nP",&n_p,NULL);
 	n=n_u+n_p;
-	MatGetSize( A_input, &nrows, &ncolumns);
-
-	PetscCheck( nrows == ncolumns, PETSC_COMM_WORLD, ierr, "Matrix is not square !!!\n");
-	PetscCheck( n == ncolumns, PETSC_COMM_WORLD, ierr, "Inconsistent data : the matrix has %d lines but only %d velocity lines and %d pressure lines declared\n", ncolumns, n_u,n_p);
-	PetscPrintf(PETSC_COMM_WORLD,"The matrix has %d lines : %d velocity lines and %d pressure lines\n", n, n_u,n_p);
-	PetscPrintf(PETSC_COMM_SELF,"Matrix size : %d x %d, n_u = %d, n_p = %d \n", nrows, ncolumns, n_u, n_p);
+	loadPETScMat( file[0], mat_type, &A_input, n_u, n_p);
 	
-	ISCreateStride(PETSC_COMM_WORLD, n_u,   0, 1, &is_U);
-	ISCreateStride(PETSC_COMM_WORLD, n_p, n_u, 1, &is_P);
+	splitPETScMatrix2x2(   A_input, n_u, n_p, &M, &G, &D, &C, &is_U, &is_P);
 
-	splitPETScMatrix2x2(   A_input, n_u, n_p, &M, &G, &D, &C, is_U, is_P);
-
-	buildRHSVectorAndBhat( A_input, n_u, n_p, &X_anal, &b_input, &b_input_p, &b_input_u, &b_hat, is_U, is_P);
+	buildRHSVector( A_input, n_u, n_p, &X_anal, &b_input);
 
 	VecDuplicate(b_input,&X_hat);// X_hat will store the numerical solution of the transformed system
 
@@ -138,7 +128,7 @@ int main( int argc, char **args ){
 	KSPSetUp(ksp);
 	PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system...\n");
 	//VecView(X_hat, PETSC_VIEWER_STDOUT_WORLD );
-	KSPSolve(ksp,b_hat,X_hat);
+	KSPSolve(ksp,b_input,X_hat);
 
 	PCFieldSplitGetType(pc, &pc_composite_type);
 	KSPGetType(ksp,&ksp_type);
@@ -215,7 +205,6 @@ int main( int argc, char **args ){
 	MatDestroy(&diag_2M);
 
 	VecDestroy(&b_input);
-	VecDestroy(&b_hat);
 	VecDestroy(&X_hat);
 	VecDestroy(&X_anal);
 	VecDestroy(&v);

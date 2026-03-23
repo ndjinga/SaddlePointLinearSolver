@@ -1,10 +1,15 @@
 #include "SaddlePointLinearSolver.h"
 
-//##### Load the matrix A in the file given in the argument
-void loadPETScMat(char* file, char* mat_type, Mat * A, int size)
+//##### Load the matrix A from the file given in the argument
+void loadPETScMat(char* file, char* mat_type, Mat * A, PetscInt n_u, PetscInt n_p)// n_u (resp. n_p) is the number of velocity (resp. pressure) lines in the matrix, used only to optimise the parallel distribution of the matrix.
 {
+	PetscMPIInt    size;        /* size of communicator */
+	PetscMPIInt    rank;        /* processor rank */
+	MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+	MPI_Comm_size(PETSC_COMM_WORLD,&size);
 	PetscViewer viewer;
-
+	PetscInt n = n_u + n_p;
+	
 	PetscPrintf(PETSC_COMM_WORLD,"Loading Matrix type %s from file %s on %d processor(s)...\n", mat_type, file, size);	
 
 	PetscViewerCreate(PETSC_COMM_WORLD, &viewer);	
@@ -17,25 +22,73 @@ void loadPETScMat(char* file, char* mat_type, Mat * A, int size)
 	MatLoad(*A,viewer);
 	PetscViewerDestroy(&viewer);
 
+	if( size>1)
+	    if( rank == 0)
+	        MatSetSizes( *A, n-(size-1)*((n-n_u)/(size-1)), n-(size-1)*((n-n_u)/(size-1)), n, n);
+	    else
+	        MatSetSizes( *A, (n-n_u)/(size-1), (n-n_u)/(size-1), n, n);
+
 	PetscPrintf(PETSC_COMM_WORLD,"... matrix Loaded \n");	
 }
 
 //####	Decompose the matrix A_input into 4 blocks M, G, D, C
-Mat splitPETScMatrix2x2(Mat A_input, PetscInt n_u, PetscInt n_p, Mat * M, Mat * G, Mat *D, Mat * C, IS is_U, IS is_P)
+int splitPETScMatrix2x2(Mat A_input, PetscInt n_u, PetscInt n_p, Mat * M, Mat * G, Mat *D, Mat * C, IS * is_U, IS * is_P)
 {
-	PetscPrintf(PETSC_COMM_WORLD,"Extraction of the 4 blocks \n");
-	MatCreateSubMatrix(A_input,is_U, is_U,MAT_INITIAL_MATRIX,M);
-	MatCreateSubMatrix(A_input,is_U, is_P,MAT_INITIAL_MATRIX,G);
-	MatCreateSubMatrix(A_input,is_P, is_U,MAT_INITIAL_MATRIX,D);
-	MatCreateSubMatrix(A_input,is_P, is_P,MAT_INITIAL_MATRIX,C);
+	PetscMPIInt    size;        /* size of communicator */
+	PetscMPIInt    rank;        /* processor rank */
+	MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+	MPI_Comm_size(PETSC_COMM_WORLD,&size);
+	PetscInt nrows, ncolumns;//Total number of rows and columns of A_input
+	PetscInt irow_min, irow_max;//min and max indices of rows stored locally on this process
+	PetscErrorCode ierr=0;
+
+	MatGetOwnershipRange( A_input, &irow_min, &irow_max);
+	MatGetSize( A_input, &nrows, &ncolumns);
+	PetscInt min_pressure_lines = irow_min <= n_u ? n_u : irow_min;//max(irow_min, n_u)
+	PetscInt max_velocity_lines = irow_max >= n_u ? n_u : irow_max;//min(irow_max, n_u)
+	PetscInt nb_pressure_lines = irow_max >= n_u ? irow_max - min_pressure_lines : 0;
+	PetscInt nb_velocity_lines = irow_min <= n_u ? max_velocity_lines - irow_min : 0;
+	PetscInt nb_local_lines = irow_max - irow_min; 
+
+	PetscCheck( nrows == ncolumns, PETSC_COMM_WORLD, ierr, "Matrix is not square !!!\n");
+	PetscCheck( n_u+n_p == ncolumns, PETSC_COMM_WORLD, ierr, "Inconsistent data : the matrix has %d lines but only %d velocity lines and %d pressure lines declared\n", ncolumns, n_u,n_p);
+	PetscPrintf(PETSC_COMM_WORLD,"The matrix has %d lines : %d velocity lines and %d pressure lines\n", n_u+n_p, n_u,n_p);
+	PetscPrintf(PETSC_COMM_SELF,"Process %d has %d local rows : irow_min = %d, irow_max = %d, min_pressure_lines = %d, max_velocity_lines = %d, nb_pressure_lines = %d, nb_velocity_lines = %d \n", rank, nb_local_lines, irow_min, irow_max, min_pressure_lines, max_velocity_lines, nb_pressure_lines, nb_velocity_lines);
+	
+	PetscPrintf(PETSC_COMM_WORLD,"Extraction of the 4 blocks \n M G\n D C\n");
+	ISCreateStride(PETSC_COMM_WORLD, nb_velocity_lines, max_velocity_lines - nb_velocity_lines, 1, is_U);
+	ISCreateStride(PETSC_COMM_WORLD, nb_pressure_lines, min_pressure_lines                    , 1, is_P);
+
+	MatCreateSubMatrix(A_input,*is_U, *is_U,MAT_INITIAL_MATRIX,M);
+	MatCreateSubMatrix(A_input,*is_U, *is_P,MAT_INITIAL_MATRIX,G);
+	MatCreateSubMatrix(A_input,*is_P, *is_U,MAT_INITIAL_MATRIX,D);
+	MatCreateSubMatrix(A_input,*is_P, *is_P,MAT_INITIAL_MATRIX,C);
 	PetscPrintf(PETSC_COMM_WORLD,"... end of extraction\n");
+
+	//#Display some informations about the four blocs
+	MatGetOwnershipRange( *M, &irow_min, &irow_max);
+	PetscPrintf(PETSC_COMM_SELF,"Matrix M, Process %d local rows : irow_min = %d, irow_max = %d \n", rank, irow_min, irow_max);
+	MatGetOwnershipRange( *G, &irow_min, &irow_max);
+	PetscPrintf(PETSC_COMM_SELF,"Matrix G, Process %d local rows : irow_min = %d, irow_max = %d \n", rank, irow_min, irow_max);
+	MatGetOwnershipRange( *D, &irow_min, &irow_max);
+	PetscPrintf(PETSC_COMM_SELF,"Matrix D, Process %d local rows : irow_min = %d, irow_max = %d \n", rank, irow_min, irow_max);
+	MatGetOwnershipRange( *C, &irow_min, &irow_max);
+	PetscPrintf(PETSC_COMM_SELF,"Matrix C, Process %d local rows : irow_min = %d, irow_max = %d \n", rank, irow_min, irow_max);
+
+	int size1, size2;
+	MatGetSize(*M, &size1,&size2);
+	PetscPrintf(PETSC_COMM_WORLD,"Size of M : %d,%d\n", size1,size2);
+	MatGetSize(*G, &size1,&size2);
+	PetscPrintf(PETSC_COMM_WORLD,"Size of G : %d,%d\n", size1,size2);
+	MatGetSize(*D, &size1,&size2);
+	PetscPrintf(PETSC_COMM_WORLD,"Size of D : %d,%d\n", size1,size2);
+	MatGetSize(*C, &size1,&size2);
+	PetscPrintf(PETSC_COMM_WORLD,"Size of C : %d,%d\n", size1,size2);
 }
 
 //##### Definition of the right hand side to test the preconditioner
-void buildRHSVectorAndBhat( Mat A_input, PetscInt n_u, PetscInt n_p, Vec * X_anal, Vec * b_input, Vec * b_input_p, Vec * b_input_u, Vec * b_hat, IS is_U, IS is_P)
+void buildRHSVector( Mat A_input, PetscInt n_u, PetscInt n_p, Vec * X_anal, Vec * b_input)
 {
-	Vec X_array[2];
-	IS IS_array[2];
 	PetscScalar values[n_u+n_p];//To store the values
 	PetscInt    indices[n_u+n_p];//To store the indices
 
@@ -45,7 +98,6 @@ void buildRHSVectorAndBhat( Mat A_input, PetscInt n_u, PetscInt n_p, Vec * X_ana
 	VecSetFromOptions(*b_input);
 
 	VecDuplicate(*b_input,X_anal);//X_anal will store the exact solution
-	VecDuplicate(*b_input,b_hat);// b_hat will store the right hand side of the transformed system
 	
 	for (int i = 0; i<n_u+n_p; i++){
 		values[i] = 1.0/(i+1);//valeur second membre à imposer ici
@@ -57,17 +109,6 @@ void buildRHSVectorAndBhat( Mat A_input, PetscInt n_u, PetscInt n_p, Vec * X_ana
 	VecAssemblyEnd(*X_anal);
 	VecNormalize( *X_anal, NULL);
 	MatMult( A_input, *X_anal, *b_input);
-
-	VecGetSubVector( *b_input, is_P, b_input_p);
-	VecGetSubVector( *b_input, is_U, b_input_u);
-	X_array[0] = *b_input_u;
-	X_array[1] = *b_input_p;
-	IS_array[0] = is_U;
-	IS_array[1] = is_P;
-
-	VecCreateNest( PETSC_COMM_WORLD, 2, IS_array, X_array, b_hat);//This generate an error message : "Nest vector argument 3 not setup "
-	//VecCreateNest( PETSC_COMM_WORLD, 2, NULL, X_array, &b_hat);//This may generate an error message : "Nest vector argument 3 not setup "
-	//VecConcatenate(2, X_array, b_hat, NULL);
 
 	PetscPrintf(PETSC_COMM_WORLD,"... vectors created \n");	
 }
