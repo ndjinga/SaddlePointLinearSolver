@@ -227,8 +227,8 @@ int main( int argc, char **args ){
 	PetscPrintf(PETSC_COMM_WORLD,"Setting the preconditioner...\n");
 	PCSetType(pc,PCFIELDSPLIT);
 	PCFieldSplitSetType(pc,PC_COMPOSITE_MULTIPLICATIVE);
-	PCFieldSplitSetIS(pc, "0",is_U);
-	PCFieldSplitSetIS(pc, "1",is_P);
+	PCFieldSplitSetIS(pc, "0",is_U);//The order here matters a lot between this line and the next
+	PCFieldSplitSetIS(pc, "1",is_P);//The order here matters a lot between this line and the previous
 	PCFieldSplitGetSubKSP( pc, &nblocks, &kspArray);
 	KSPSetType( kspArray[0], KSPPREONLY);
 	KSPSetType( kspArray[1], KSPPREONLY);
