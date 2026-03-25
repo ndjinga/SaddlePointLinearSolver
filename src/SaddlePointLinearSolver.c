@@ -190,6 +190,7 @@ void getSolutionFromXhat(Mat G, Vec v, Vec X_hat, Vec * X_output, Vec * X_u, Vec
 	Vec X_hat_p;//Pressure components of the transformed unknown
 	Vec X_hat_u;//Velocity components of the transformed unknown
 	Vec X_array[2];
+	IS IS_array[2];
 	
 	VecGetSubVector( X_hat, is_P, &X_hat_p);
 	VecGetSubVector( X_hat, is_U, &X_hat_u);
@@ -203,9 +204,11 @@ void getSolutionFromXhat(Mat G, Vec v, Vec X_hat, Vec * X_output, Vec * X_u, Vec
 
 	X_array[0] = *X_u;
 	X_array[1] = *X_p;
+	IS_array[0] = is_U;
+	IS_array[1] = is_P;
 	
-	//VecCreateNest( PETSC_COMM_WORLD, 2, IS_array, X_output_array, &X_output);//This generate an error message : "Nest vector argument 3 not setup "
-	VecConcatenate(2, X_array, X_output, NULL);
+	VecCreateNest( PETSC_COMM_WORLD, 2, IS_array, X_array, X_output);
+	//VecConcatenate(2, X_array, X_output, NULL);//Works only in sequential mode
 }
 
 //##### Compute the error and check it is small
@@ -224,8 +227,9 @@ double computeErrorAndCheck( Vec X_anal, Vec X_output, IS is_U, IS is_P, Vec X_u
 	VecNorm(  X_u, NORM_2, &error_u);
 	PetscPrintf(PETSC_COMM_WORLD,"L2 Error u : ||X_anal_u - X_num_u|| = %e \n", error_u);
 
-	VecAXPY(X_output, -1, X_anal);
-	VecNorm( X_output, NORM_2, &error);
+	//VecAXPY(X_output, -1, X_anal);//This generates an error "Incompatible vector local lengths parameter" probably because Xoutput is a nest vector and Xanal is not
+	//VecNorm( X_output, NORM_2, &error);
+	error=sqrt(error_u*error_u+error_p*error_p);
 	PetscPrintf(PETSC_COMM_WORLD,"L2 Error : ||X_anal - X_num|| = %e, (remember ||X_anal||=1)\n", error);
 
 	PetscCheck( error < 1e-4, PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED, "Linear system did not return accurate solution. Error is too high compared to residual (e>1e-4) : e=%e\n", error);
