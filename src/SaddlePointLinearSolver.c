@@ -19,13 +19,14 @@ void loadPETScMat(char* file, char* mat_type, Mat * A, PetscInt n_u, PetscInt n_
 	
 	MatCreate(PETSC_COMM_WORLD, A);
 	MatSetType(*A,mat_type);
-	MatLoad(*A,viewer);
 
 	if( size>1)
 	    if( rank == 0)
 	        MatSetSizes( *A, n-(size-1)*((n-n_u)/(size-1)), n-(size-1)*((n-n_u)/(size-1)), n, n);
 	    else
 	        MatSetSizes( *A, (n-n_u)/(size-1), (n-n_u)/(size-1), n, n);
+
+	MatLoad(*A,viewer);
 
 	PetscPrintf(PETSC_COMM_WORLD,"... matrix Loaded \n");	
 
@@ -102,11 +103,7 @@ void buildRHSVector( Mat A_input, PetscInt n_u, PetscInt n_p, Vec * X_anal, Vec 
 	PetscMalloc1(irow_max-irow_min, &indices);
 	 
 	PetscPrintf(PETSC_COMM_WORLD,"Creation of the RHS, exact and numerical solution vectors...\n");
-	VecCreate(PETSC_COMM_WORLD,b_input);
-	VecSetSizes(*b_input,PETSC_DECIDE,n_u+n_p);
-	VecSetFromOptions(*b_input);
-
-	VecDuplicate(*b_input,X_anal);//X_anal will store the exact solution
+	MatCreateVecs( A_input, b_input, X_anal );// parallel distribution of vectors should optimise the computation A_input*X_anal=b_input
 	
 	for (int i = 0; i<irow_max-irow_min; i++){
 		values[i] = 1.0/(irow_min+i+1);//valeur second membre à imposer ici
