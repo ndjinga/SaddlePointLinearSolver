@@ -51,14 +51,11 @@ int main( int argc, char **args ){
 	Vec b_input, X_hat, X_anal;
 	Vec v;
 	double error;
-	
-	PetscCheck( size == 1, PETSC_COMM_WORLD, PETSC_ERR_ARG_SIZ, "Incorrect number of procs nprocs = %d.\n !!! This is a sequential implementation !!! \n", size);
 
 	PetscBool flg;
 	PetscOptionsGetString(NULL,NULL,"-f0",file[0],PETSC_MAX_PATH_LEN,&flg);
 	PetscStrcpy(mat_type,MATAIJ);// Default value for PETSc Matrix type
 	PetscOptionsGetString(NULL,NULL,"-mat_type",mat_type,sizeof(mat_type),NULL);
-
 
 	PetscOptionsGetInt(NULL,NULL,"-nU",&n_u,NULL);
 	PetscOptionsGetInt(NULL,NULL,"-nP",&n_p,NULL);
