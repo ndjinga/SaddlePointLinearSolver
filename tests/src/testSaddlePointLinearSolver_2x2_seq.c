@@ -116,6 +116,7 @@ int main( int argc, char **args ){
 		}
 	}
 	else{
+		PCFieldSplitSchurGetSubKSP( pc, &nblocks, &kspArray);
 		PetscPrintf(PETSC_COMM_WORLD,"Using PCILU\n");
 		PCSetType(pc,PCILU);//This prec works fine in sequential
 	}
@@ -131,7 +132,6 @@ int main( int argc, char **args ){
 	PCFieldSplitGetType(pc, &pc_composite_type);
 	KSPGetType(ksp,&ksp_type);
 	PCGetType(pc,&pc_type);
-	PCFieldSplitSchurGetSubKSP( pc, &nblocks, &kspArray);
 	KSPGetType(kspArray[0],&ksp_type0);
 	KSPGetType(kspArray[1],&ksp_type1);
 	KSPGetPC(kspArray[0], &pc1);
@@ -166,7 +166,7 @@ int main( int argc, char **args ){
 		    PetscPrintf(PETSC_COMM_WORLD, "!!!!!!! Residual 2-norm > dtol*||RHS||_2 with dtol = %e, final residual = %e !!!!!!! \n", dtol, residu);
 		    break;
 		case -3:
-		    PetscPrintf(PETSC_COMM_WORLD, "!!!!!!! Maximum number of iterations %d reached !!!!!!! \n", numberMaxOfIter);
+		    PetscPrintf(PETSC_COMM_WORLD, "!!!!!!! Maximum number of iterations %d reached with dtol = %e, final residual =  %e !!!!!!! \n", numberMaxOfIter, dtol, residu);
 		    break;
 		case -11:
 		    PetscPrintf(PETSC_COMM_WORLD, "!!!!!!! Construction of preconditioner failed !!!!!! \n");
