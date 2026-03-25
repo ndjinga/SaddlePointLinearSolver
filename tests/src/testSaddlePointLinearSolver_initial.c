@@ -216,10 +216,18 @@ int main( int argc, char **args ){
 	PCSetType(pc,pc_type);
 	if( strcmp(pc_type , PCFIELDSPLIT)==0 ){
 		PCFieldSplitSetType(pc, pc_composite_type);
-		PCFieldSplitSetIS(pc, "0",is_P_hat);
-		PCFieldSplitSetIS(pc, "1",is_U_hat);
+		PCFieldSplitSetIS(pc, "1",is_P_hat);
+		PCFieldSplitSetIS(pc, "0",is_U_hat);
+		PCFieldSplitGetSubKSP( pc, &nsplit, &subksp);
+		KSPSetType( subksp[0], KSPPREONLY);
+		KSPSetType( subksp[1], KSPPREONLY);
+		KSPGetPC(subksp[0], &subpc0);
+		KSPGetPC(subksp[1], &subpc1);
+		    PCSetType( subpc0, PCJACOBI);
+		    PCSetType( subpc1, PCGAMG);
 	}
 	else{
+		PCFieldSplitSchurGetSubKSP( pc, &nsplit, &subksp);
 		PetscPrintf(PETSC_COMM_WORLD,"Using PCILU\n");
 		PCSetType(pc,PCILU);//This prec works fine in sequential
 	}
@@ -228,14 +236,11 @@ int main( int argc, char **args ){
 	KSPSetFromOptions(ksp);
 	KSPSetUp(ksp);
 	PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system...\n");
-	KSPSolve(ksp,b_hat,X_hat);
+	PetscCall(KSPSolve(ksp,b_hat,X_hat));
 
 	PCFieldSplitGetType(pc, &pc_composite_type);
 	KSPGetType(ksp,&ksp_type);
 		PCGetType(pc,&pc_type);
-	PCFieldSplitSchurGetSubKSP( pc, &nsplit, &subksp);
-	KSPGetType(subksp[0],&ksp_type0);
-	KSPGetType(subksp[1],&ksp_type1);
 	KSPGetPC(subksp[0], &subpc0);
 	KSPGetPC(subksp[1], &subpc1);
 	PCGetType( subpc0, &pc_type0);
@@ -259,16 +264,16 @@ int main( int argc, char **args ){
 		
 	switch(reason){
 		case 2:
-		    PetscPrintf(PETSC_COMM_WORLD, "Residual 2-norm < rtol*||RHS||_2 with rtol = %e, final residual = %e\n", rtol, residu);
+		    PetscPrintf(PETSC_COMM_WORLD, "Residual 2-norm < rtol*||RHS||_2 with rtol = %e, final residual = %e\n\n", rtol, residu);
 		    break;
 		case 3:
-		    PetscPrintf(PETSC_COMM_WORLD, "Residual 2-norm < atol with atol = %e, final residual = %e\n", abstol, residu);
+		    PetscPrintf(PETSC_COMM_WORLD, "Residual 2-norm < atol with atol = %e, final residual = %e\n\n", abstol, residu);
 		    break;
 		case -4:
 		    PetscPrintf(PETSC_COMM_WORLD, "!!!!!!! Residual 2-norm > dtol*||RHS||_2 with dtol = %e, final residual = %e !!!!!!! \n", dtol, residu);
 		    break;
 		case -3:
-		    PetscPrintf(PETSC_COMM_WORLD, "!!!!!!! Maximum number of iterations %d reached !!!!!!! \n", numberMaxOfIter);
+		    PetscPrintf(PETSC_COMM_WORLD, "!!!!!!! Maximum number of iterations %d reached with dtol = %e, final residual =  %e !!!!!!! \n", numberMaxOfIter, dtol, residu);
 		    break;
 		case -11:
 		    PetscPrintf(PETSC_COMM_WORLD, "!!!!!!! Construction of preconditioner failed !!!!!! \n");
