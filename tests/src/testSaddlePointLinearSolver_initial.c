@@ -216,8 +216,8 @@ int main( int argc, char **args ){
 	PCSetType(pc,pc_type);
 	if( strcmp(pc_type , PCFIELDSPLIT)==0 ){
 		PCFieldSplitSetType(pc, pc_composite_type);
-		PCFieldSplitSetIS(pc, "1",is_P_hat);
-		PCFieldSplitSetIS(pc, "0",is_U_hat);
+		PCFieldSplitSetIS(pc, "1",is_P_hat);//The order here matters a lot between this line and the next
+		PCFieldSplitSetIS(pc, "0",is_U_hat);//The order here matters a lot between this line and the previous
 		PCFieldSplitGetSubKSP( pc, &nsplit, &subksp);
 		KSPSetType( subksp[0], KSPPREONLY);
 		KSPSetType( subksp[1], KSPPREONLY);
