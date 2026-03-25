@@ -82,7 +82,7 @@ int main( int argc, char **args ){
 	PCCompositeType pc_composite_type = PC_COMPOSITE_MULTIPLICATIVE;//or ADDITIVE ???
 
 	double residu, abstol, rtol=1e-7, dtol;
-	int iter, numberMaxOfIter;
+	int iter, iter1, iter2, numberMaxOfIter;
 
 	PetscPrintf(PETSC_COMM_WORLD,"Definition of the solver ...\n");
 	KSPCreate(PETSC_COMM_WORLD,&ksp);
@@ -94,8 +94,8 @@ int main( int argc, char **args ){
 	PCSetType(pc,pc_type);
 	if( strcmp(pc_type , PCFIELDSPLIT)==0 ){
 		PCFieldSplitSetType(pc, pc_composite_type);
-		PCFieldSplitSetIS(pc, "1",is_P);
-		PCFieldSplitSetIS(pc, "0",is_U);
+		PCFieldSplitSetIS(pc, "0",is_U);//The order here matters a lot between this line and the next
+		PCFieldSplitSetIS(pc, "1",is_P);//The order here matters a lot between this line and the previous
 		PCFieldSplitGetSubKSP( pc, &nblocks, &kspArray);
 		KSPSetType( kspArray[0], KSPPREONLY);
 		KSPSetType( kspArray[1], KSPPREONLY);
@@ -125,19 +125,10 @@ int main( int argc, char **args ){
 	KSPSetFromOptions(ksp);
 	KSPSetUp(ksp);
 	PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system...\n");
-	//VecView(X_hat, PETSC_VIEWER_STDOUT_WORLD );
 
-	PetscCall(KSPSolve(ksp,b_input,X_hat));
+	PetscCall( KSPSolve(ksp,b_input,X_hat) );
 
 	PCFieldSplitGetType(pc, &pc_composite_type);
-	KSPGetType(ksp,&ksp_type);
-	PCGetType(pc,&pc_type);
-	KSPGetType(kspArray[0],&ksp_type0);
-	KSPGetType(kspArray[1],&ksp_type1);
-	KSPGetPC(kspArray[0], &pc1);
-	KSPGetPC(kspArray[1], &pc2);
-	PCGetType( pc1, &pc_type0);
-	PCGetType( pc2, &pc_type1);
 	if(pc_composite_type==PC_COMPOSITE_MULTIPLICATIVE)
 		PetscPrintf(PETSC_COMM_WORLD,"... linear system solved with ksp_type %s, pc_composite_type PC_COMPOSITE_MULTIPLICATIVE\n",ksp_type);
 	else
@@ -155,6 +146,24 @@ int main( int argc, char **args ){
 	else
 		PetscPrintf(PETSC_COMM_WORLD, "!!!!!!!!!!!!!!!!!! Linear system diverged  after %d iterations !!!!!!!!!!!!!!\n", iter);
 		
+	PCFieldSplitGetSubKSP( pc, &nblocks, &kspArray);
+	KSPGetType( ksp, &ksp_type);
+	KSPGetType( kspArray[0], &ksp_type0);
+	KSPGetType( kspArray[1], &ksp_type1);
+	KSPGetIterationNumber(kspArray[0],&iter1);
+	KSPGetIterationNumber(kspArray[1],&iter2);
+	KSPGetPC(kspArray[0],&pc1);
+	KSPGetPC(kspArray[1],&pc2);
+	PCGetType( pc, &pc_type);
+	PCGetType( pc1, &pc_type0);
+	PCGetType( pc2, &pc_type1);
+	PetscFree(kspArray);
+
+	PetscPrintf(PETSC_COMM_WORLD, "\n############ : monitoring of the linear solver \n");
+	PetscPrintf(PETSC_COMM_WORLD, "Linear solver name: %s, preconditioner %s, %d iterations \n", ksp_type, pc_type, iter);
+	PetscPrintf(PETSC_COMM_WORLD, "    sub solver 1 name : %s, preconditioner %s, %d iterations \n", ksp_type0, pc_type0, iter1);
+	PetscPrintf(PETSC_COMM_WORLD, "    sub solver 2 name : %s, preconditioner %s, %d iterations \n", ksp_type1, pc_type1, iter2);
+
 	switch(reason){
 		case 2:
 		    PetscPrintf(PETSC_COMM_WORLD, "Residual 2-norm < rtol*||RHS||_2 with rtol = %e, final residual = %e\n\n", rtol, residu);
