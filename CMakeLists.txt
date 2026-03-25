@@ -98,6 +98,7 @@ add_test(NAME testSaddlePointLinearSolver_2x2_par_instrumentation_Assembly_1 COM
  set_property (TEST testSaddlePointLinearSolver_2x2_par_instrumentation_Assembly_1 PROPERTY LABELS "C++ 2x2 par1 instrumentation PC_COMPOSITE Assembly Assembly_1")     
 
 if( SaddlePointLinearSolver_WITH_MPI )
+ add_test(NAME testSaddlePointLinearSolver_2x2_seq_2procs_Assembly_1  COMMAND "${MPIEXEC}" "-n" "2" "./testSaddlePointLinearSolver_2x2_seq" "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/3DAssemblyMesh/Assembly_PolyMAC_1_vp.petsc" "-nU" "20344" "-nP" "9552")
  add_test(NAME testSaddlePointLinearSolver_2x2_par_2procs_Cartesian_3                 COMMAND "${MPIEXEC}" "-n" "2" "./testSaddlePointLinearSolver_2x2_par"                 "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/2DCartesian/Cartesian_PolyMAC_3_vp.petsc" "-nU" "544" "-nP" "256")
  add_test(NAME testSaddlePointLinearSolver_2x2_par_2procs_Cartesian_4                 COMMAND "${MPIEXEC}" "-n" "2" "./testSaddlePointLinearSolver_2x2_par"                 "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/2DCartesian/Cartesian_PolyMAC_4_vp.petsc" "-nU" "2112" "-nP" "1024")
  add_test(NAME testSaddlePointLinearSolver_2x2_par_4procs_Cartesian_4                 COMMAND "${MPIEXEC}" "-n" "4" "./testSaddlePointLinearSolver_2x2_par"                 "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/2DCartesian/Cartesian_PolyMAC_4_vp.petsc" "-nU" "2112" "-nP" "1024")
