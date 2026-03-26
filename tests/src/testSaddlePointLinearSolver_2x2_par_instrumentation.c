@@ -2,6 +2,7 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 
 /*************************************************************************************************/
 /* Parallel implementation of a new preconditioner for the linear system A_{input} X_{output} = b_{input} */
+/*            Choose a block triangular matrix T and perform the change of variables  X_hat = T^{-1}X, A_hat = (A_{input}T) */
 /*                                                                                               */
 /* Description : Parallell file with PC_COMPOSITE of MULTIPLICATIVE type, implemented for 2x2 blocs.*/
 /*               To do : Use of API (class SaddlePointLinearSolve) for better code factorisation */ 
@@ -23,9 +24,13 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 /*                        A     = *       *                                                      */
 /*                                 *D   C*                                                       */
 /*                                                                                               */
-/*                                 *M     G_hat*             G_hat=G - M*D_M_inv*G               */
+/*                                 *Id  -diag(M)^{-1}G*                    *Id  diag(M)^{-1}G*   */
+/*                        T     = *                    *         T^{-1} = *                   *  */
+/*                                 *0               Id*                    *0              Id*   */
+/*                                                                                               */
+/*                                 *M     G_hat*             G_hat=G - M*diag(M)^{-1}*G          */
 /*                        A_hat = *             *                                                */
-/*                                 *D     C_hat*             C_hat=C - D*D_M_inv*G               */
+/*                                 *D     C_hat*             C_hat=C - D*diag(M)^{-1}*G          */
 /*                                                                                               */
 /*                                 *2 diag(M)     0  *                                           */
 /*                        Pmat  = *                   *                                          */
@@ -177,7 +182,7 @@ int main( int argc, char **args ){
 	PetscLogStagePush( linear_system_stage);//Instrumentation
 	
 	// Declaration
-	Mat D_M_inv_G, Mat_array[4];
+	Mat D_M_inv_G, Mat_array[4];// D_M_inv = diag(M)^{-1}
 	Mat A_hat, Pmat, C_hat, G_hat;
 	Mat diag_2M;//Will store 2*diagonal part of M (to approximate the Schur complement)
 	Vec v;
@@ -195,7 +200,7 @@ int main( int argc, char **args ){
 	MatScale(diag_2M,2);//store 2*diagonal part of M
 	VecReciprocal(v);
 	
-	// Creation of D_M_inv_G = D_M_inv*G
+	// Creation of D_M_inv_G = D_M_inv*G = diag(M)^{-1} * G
 	MatDuplicate(G,MAT_COPY_VALUES,&D_M_inv_G);//D_M_inv_G contains G
 	MatCreateVecs(D_M_inv_G,NULL,&v_redistributed);//v_redistributed has the parallel distribution of D_M_inv_G
 	PetscInt col_min, col_max;

@@ -2,8 +2,8 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 
 /*************************************************************************************************/
 /* Sequential implementation of a transform-then-solve preconditioner for the linear system A_{input} X_{output} = b_{input} */
-/*            Find a block triangular matrix T and perform the change of variables  X_hat = T^{-1}X, A_hat = (A_{input}T)T^{-1} */
-/*            Pressure and velocity unknowns are swaped in the transform for convenience reasons */ 
+/*            Choose a block triangular matrix T and perform the change of variables  X_hat = T^{-1}X */
+/*            Pressure and velocity unknowns are swaped in the transform for convenience reasons, A_hat = P(A_{input}T)P^{-1} */ 
 /*
 /* Description : initial file developped by M.N. Sequential file PC_COMPOSITE of MULTIPLICATIVE type*/
 /*               not restricted to 2x2 blocs unlike Schur composite pc (see Shat approach).      */ 
@@ -25,6 +25,14 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 /*                                 *M   G*                                                       */
 /*                        A     = *       *                                                      */
 /*                                 *D   C*                                                       */
+/*                                                                                               */
+/*                                 *Id  -diag(M)^{-1}G*                    *Id  diag(M)^{-1}G*   */
+/*                        T     = *                    *         T^{-1} = *                   *  */
+/*                                 *0               Id*                    *0              Id*   */
+/*                                                                                               */
+/*                                 *0   Id*                                                       */
+/*                        A     = *        *                                                      */
+/*                                 *Id   0*                                                       */
 /*                                                                                               */
 /*                                 *C_hat  -D*                                                   */
 /*                        A_hat = *           *                                                  */
@@ -144,7 +152,7 @@ int main( int argc, char **args ){
 	
 //##### Application of the transformation A -> A_hat
 	// Declaration
-	Mat D_M_inv_G, Mat_array[4];
+	Mat D_M_inv_G, Mat_array[4];// D_M_inv = diag(M)^{-1}
 	Mat A_hat, Pmat, C_hat, G_hat;
 	Mat diag_2M;//Will store 2*diagonal part of M (to approximate the Schur complement)
 	Vec v;
@@ -161,7 +169,7 @@ int main( int argc, char **args ){
 	MatDiagonalScale(diag_2M, v, NULL);//store 2*diagonal part of M
 	VecReciprocal(v);//Must first check that all the coefficients are non zero
 	
-	// Creation of D_M_inv_G = D_M_inv*G
+	// Creation of D_M_inv_G = D_M_inv*G = diag(M)^{-1} * G
 	MatDuplicate(G,MAT_COPY_VALUES,&D_M_inv_G);//D_M_inv_G contains G
 	MatDiagonalScale( D_M_inv_G, v, NULL);//D_M_inv_G contains D_M_inv*G
 

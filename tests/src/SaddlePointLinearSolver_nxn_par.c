@@ -2,7 +2,8 @@ static char help[] = "Read a PETSc matrix from a file Parameters : \n -f0 : matr
 
 /*************************************************************************************************/
 /* Parallel implementation of a new preconditioner for the linear system A_{input} X_{output} = b_{input} */
-/* The coupling between two variables u and p displays a saddle point structure  ( M G \\ D C )  */
+/*          Find a block triangular matrix T and perform the change of variables  X_hat = T^{-1}X, A_hat = (A_{input}T) */
+/*          The coupling between two variables u and p displays a saddle point structure  ( M G \\ D C )  */
 /*                                                                                               */
 /* Description : Parallell file with PC_COMPOSITE of MULTIPLICATIVE type, general nxn bloc structure.*/
 /*               To do : Use of API (class SaddlePointLinearSolve) for better code factorisation */ 
@@ -217,7 +218,7 @@ int main( int argc, char **args ){
 	MatGetDiagonal(M,v_M);
 	VecReciprocal(   v_M);
 	
-	// Creation of D_M_inv_G = D_M_inv*G
+	// Creation of D_M_inv_G = D_M_inv*G = diag(M)^{-1} * G
 	MatDuplicate(G,MAT_COPY_VALUES,&D_M_inv_G);//D_M_inv_G contains G
 	MatCreateVecs(D_M_inv_G,NULL,&v_redistributed);//v_redistributed has the parallel distribution of D_M_inv_G
 	PetscInt col_min, col_max;

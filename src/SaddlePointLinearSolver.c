@@ -128,7 +128,7 @@ void transformSaddlePointMatrix( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * 
 	PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix...\n");
 
 	Vec v_redistributed;
-	Mat D_M_inv_G, C_hat, G_hat, diag_2M, Mat_array[4];
+	Mat D_M_inv_G, C_hat, G_hat, diag_2M, Mat_array[4];// D_M_inv = diag(M)^{-1}
 	VecScatter scat;//tool to redistribute a vector on the processors
 	IS is_to, is_from;
 	PetscInt col_min, col_max;
@@ -144,7 +144,7 @@ void transformSaddlePointMatrix( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * 
 	MatScale(diag_2M,2);//store 2*diagonal part of M
 	VecReciprocal(*v);//Must first check that all the coefficients are non zero
 	
-	// Creation of D_M_inv_G = D_M_inv*G
+	// Creation of D_M_inv_G = D_M_inv*G = diag(M)^{-1} * G
 	MatDuplicate(G,MAT_COPY_VALUES,&D_M_inv_G);//D_M_inv_G contains G
 	MatCreateVecs(D_M_inv_G,NULL,&v_redistributed);//v_redistributed has the parallel distribution of D_M_inv_G
 	VecGetOwnershipRange(*v,&col_min,&col_max);
