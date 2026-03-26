@@ -1,6 +1,7 @@
 #include "SaddlePointLinearSolver.h"
 
 //##### Load the matrix A from the file given in the argument
+//### Creation of Mat A. Mat A must be deleted by caller
 void loadPETScMat(char* file, char* mat_type, Mat * A, PetscInt n_u, PetscInt n_p)// n_u (resp. n_p) is the number of velocity (resp. pressure) lines in the matrix, used only to optimise the parallel distribution of the matrix.
 {
 	PetscMPIInt    size;        /* size of communicator */
@@ -34,6 +35,7 @@ void loadPETScMat(char* file, char* mat_type, Mat * A, PetscInt n_u, PetscInt n_
 }
 
 //####	Decompose the matrix A_input into 4 blocks M, G, D, C
+//### M, G, D, C, is_U and is_P must be deleted by caller
 int splitPETScMatrix2x2(Mat A_input, PetscInt n_u, PetscInt n_p, Mat * M, Mat * G, Mat *D, Mat * C, IS * is_U, IS * is_P)
 {
 	PetscMPIInt    size;        /* size of communicator */
@@ -88,6 +90,7 @@ int splitPETScMatrix2x2(Mat A_input, PetscInt n_u, PetscInt n_p, Mat * M, Mat * 
 }
 
 //##### Definition of the right hand side to test the preconditioner
+//### Vectors X_anal and b_input must be deleted by caller
 void buildRHSVector( Mat A_input, PetscInt n_u, PetscInt n_p, Vec * X_anal, Vec * b_input)
 {
 	PetscMPIInt    size;        /* size of communicator */
@@ -123,12 +126,13 @@ void buildRHSVector( Mat A_input, PetscInt n_u, PetscInt n_p, Vec * X_anal, Vec 
 }
 
 //##### Application of the transformation A -> A_hat
-void transformSaddlePointMatrix( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Vec * v)
+//## Matrices Ghat, Chat, diag_2M and vector v must be deleted by caller
+void transformSaddlePointMatrix( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * G_hat, Mat * diag_2M, Vec * v)
 {
 	PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix...\n");
 
 	Vec v_redistributed;
-	Mat D_M_inv_G, C_hat, G_hat, diag_2M, Mat_array[4];// D_M_inv = diag(M)^{-1}
+	Mat D_M_inv_G, Mat_array[4];// D_M_inv = diag(M)^{-1}
 	VecScatter scat;//tool to redistribute a vector on the processors
 	IS is_to, is_from;
 	PetscInt col_min, col_max;
@@ -185,6 +189,7 @@ void transformSaddlePointMatrix( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * 
 }
 
 //##### Compute X from X_hat
+//## Vectors X_output, X_u, X_p must be deleted by caller
 void getSolutionFromXhat(Mat G, Vec v, Vec X_hat, Vec * X_output, Vec * X_u, Vec * X_p, IS is_U, IS is_P)
 {
 	Vec X_hat_p;//Pressure components of the transformed unknown
@@ -209,6 +214,9 @@ void getSolutionFromXhat(Mat G, Vec v, Vec X_hat, Vec * X_output, Vec * X_u, Vec
 	
 	VecCreateNest( PETSC_COMM_WORLD, 2, IS_array, X_array, X_output);
 	//VecConcatenate(2, X_array, X_output, NULL);//Works only in sequential mode
+
+	VecDestroy(&X_hat_u);
+	VecDestroy(&X_hat_p);
 }
 
 //##### Compute the error and check it is small
@@ -238,7 +246,7 @@ double computeErrorAndCheck( Vec X_anal, Vec X_output, IS is_U, IS is_P, Vec X_u
 }
 
 //##### Solve the transformed system for Xhat
-int solveTransformedSystemForXhat( Mat Amat, Mat Pmat, IS is_U, IS is_P, Vec b_hat, Vec * X_hat, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter)
+int solveTransformedSystemForXhat( Mat A_hat, Mat Pmat, IS is_U, IS is_P, Vec b_hat, Vec * X_hat, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter)
 {
 	KSP ksp, *kspArray;
 	PC pc, pc1, pc2;
@@ -248,13 +256,13 @@ int solveTransformedSystemForXhat( Mat Amat, Mat Pmat, IS is_U, IS is_P, Vec b_h
 	PCCompositeType pc_composite_type = PC_COMPOSITE_MULTIPLICATIVE;//or ADDITIVE ???
 
 	double residu;
-	int iter, iter1, iter2, numberMaxOfIter;
+	int iter, iter1, iter2;
 
 	PetscPrintf(PETSC_COMM_WORLD,"Definition of the solver ...\n");
 	KSPCreate(PETSC_COMM_WORLD,&ksp);
 	KSPSetType(ksp, ksp_type);
 	KSPSetOperators(ksp,A_hat,Pmat);
-	KSPSetTolerances(ksp,rtol, rtol, abstol, dtol, numberMaxOfIter);
+	KSPSetTolerances(ksp,rtol, abstol, dtol, numberMaxOfIter);
 	KSPGetPC(ksp,&pc);
 	PetscPrintf(PETSC_COMM_WORLD,"Setting the preconditioner %s...\n", pc_type);
 	PCSetType(pc,pc_type);
@@ -277,7 +285,7 @@ int solveTransformedSystemForXhat( Mat Amat, Mat Pmat, IS is_U, IS is_P, Vec b_h
 	KSPSetUp(ksp);
 	PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system...\n");
 
-	PetscCall( KSPSolve(ksp,b_input, *X_hat) );
+	PetscCall( KSPSolve(ksp,b_hat, *X_hat) );
 
 	PCFieldSplitGetType(pc, &pc_composite_type);
 	if(pc_composite_type==PC_COMPOSITE_MULTIPLICATIVE)
@@ -339,4 +347,7 @@ int solveTransformedSystemForXhat( Mat Amat, Mat Pmat, IS is_U, IS is_P, Vec b_h
 			else
 			    PetscPrintf(PETSC_COMM_WORLD, "PETSc divergence reason %d \n" , reason);
 		}	
+
+	KSPDestroy(&ksp);
+	PetscFree(kspArray);
 }

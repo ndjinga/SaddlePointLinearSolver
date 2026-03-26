@@ -49,7 +49,7 @@ int main( int argc, char **args ){
 	MPI_Comm_size(PETSC_COMM_WORLD,&size);
 	PetscInt n_u, n_p, n;//Total number of velocity and pressure lines. n = n_u+ n_p
 	char file[1][PETSC_MAX_PATH_LEN], mat_type[256]; // File to load, matrix type
-	Mat A_input, A_hat, Pmat;
+	Mat A_input, A_hat, Pmat, C_hat, G_hat, diag_2M;
 	Mat M, G, D, C;
 	IS is_U,is_P;
 	Vec b_input, X_hat, X_anal;
@@ -72,7 +72,7 @@ int main( int argc, char **args ){
 
 	VecDuplicate(b_input,&X_hat);// X_hat will store the numerical solution of the transformed system
 
-	transformSaddlePointMatrix(M,G,D,C,&A_hat,&Pmat,&v);
+	transformSaddlePointMatrix(M,G,D,C,&A_hat,&Pmat, &C_hat, &G_hat, &diag_2M,&v);
 
 //##### Calling KSP solver and monitor convergence
 	KSP ksp, *kspArray;
@@ -207,6 +207,10 @@ int main( int argc, char **args ){
 	MatDestroy(&D);	
 	MatDestroy(&G);
 	MatDestroy(&C);
+    /* Generate errors */
+	//MatDestroy(&G_hat);
+	//MatDestroy(&C_hat);
+	//MatDestroy(&diag_2M);
 
 	VecDestroy(&b_input);
 	VecDestroy(&X_hat);
