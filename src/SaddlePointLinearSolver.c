@@ -246,7 +246,7 @@ double computeErrorAndCheck( Vec X_anal, Vec X_output, IS is_U, IS is_P, Vec X_u
 }
 
 //##### Solve the transformed system for Xhat
-int solveTransformedSystemForXhat( Mat A_hat, Mat Pmat, IS is_U, IS is_P, Vec b_hat, Vec * X_hat, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter)
+int solveTransformedSystemForXhat( Mat A_hat, Mat Pmat, IS is_U, IS is_P, Vec b_hat, Vec * X_hat, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double *residu)
 {
 	KSP ksp, *kspArray;
 	PC pc, pc1, pc2;
@@ -255,7 +255,6 @@ int solveTransformedSystemForXhat( Mat A_hat, Mat Pmat, IS is_U, IS is_P, Vec b_
 	int nblocks=2;
 	PCCompositeType pc_composite_type = PC_COMPOSITE_MULTIPLICATIVE;//or ADDITIVE ???
 
-	double residu;
 	int iter, iter1, iter2;
 
 	PetscPrintf(PETSC_COMM_WORLD,"Definition of the solver ...\n");
@@ -297,7 +296,7 @@ int solveTransformedSystemForXhat( Mat A_hat, Mat Pmat, IS is_U, IS is_P, Vec b_
 	KSPConvergedReason reason;
 	KSPGetConvergedReason(ksp,&reason);
 	KSPGetIterationNumber(ksp,&iter);
-	KSPGetResidualNorm( ksp, &residu);
+	KSPGetResidualNorm( ksp, residu);
 	KSPGetTolerances( ksp, &rtol, &abstol, &dtol, &numberMaxOfIter);
 
 	if (reason>0)
@@ -324,16 +323,16 @@ int solveTransformedSystemForXhat( Mat A_hat, Mat Pmat, IS is_U, IS is_P, Vec b_
 
 	switch(reason){
 		case 2:
-		    PetscPrintf(PETSC_COMM_WORLD, "Residual 2-norm < rtol*||RHS||_2 with rtol = %e, final residual = %e\n\n", rtol, residu);
+		    PetscPrintf(PETSC_COMM_WORLD, "Residual 2-norm < rtol*||RHS||_2 with rtol = %e, final residual = %e\n\n", rtol, *residu);
 		    break;
 		case 3:
-		    PetscPrintf(PETSC_COMM_WORLD, "Residual 2-norm < atol with atol = %e, final residual = %e\n\n", abstol, residu);
+		    PetscPrintf(PETSC_COMM_WORLD, "Residual 2-norm < atol with atol = %e, final residual = %e\n\n", abstol, *residu);
 		    break;
 		case -4:
-		    PetscPrintf(PETSC_COMM_WORLD, "!!!!!!! Residual 2-norm > dtol*||RHS||_2 with dtol = %e, final residual = %e !!!!!!! \n", dtol, residu);
+		    PetscPrintf(PETSC_COMM_WORLD, "!!!!!!! Residual 2-norm > dtol*||RHS||_2 with dtol = %e, final residual = %e !!!!!!! \n", dtol, *residu);
 		    break;
 		case -3:
-		    PetscPrintf(PETSC_COMM_WORLD, "!!!!!!! Maximum number of iterations %d reached with dtol = %e, final residual =  %e !!!!!!! \n", numberMaxOfIter, dtol, residu);
+		    PetscPrintf(PETSC_COMM_WORLD, "!!!!!!! Maximum number of iterations %d reached with dtol = %e, final residual =  %e !!!!!!! \n", numberMaxOfIter, dtol, *residu);
 		    break;
 		case -11:
 		    PetscPrintf(PETSC_COMM_WORLD, "!!!!!!! Construction of preconditioner failed !!!!!! \n");
