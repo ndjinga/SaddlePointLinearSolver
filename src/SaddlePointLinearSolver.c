@@ -142,10 +142,10 @@ void transformSaddlePointMatrix( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * 
 	MatGetDiagonal(M,*v);
 
 	//Creation of matrix 2*diag(M). Why not use MatCreateDiagonal ???
-	MatDuplicate(M, MAT_DO_NOT_COPY_VALUES, &diag_2M);
-	MatEliminateZeros(diag_2M, PETSC_TRUE);
-	MatDiagonalSet(diag_2M, *v,  INSERT_VALUES);
-	MatScale(diag_2M,2);//store 2*diagonal part of M
+	MatDuplicate(M, MAT_DO_NOT_COPY_VALUES, diag_2M);
+	MatEliminateZeros(*diag_2M, PETSC_TRUE);
+	MatDiagonalSet(*diag_2M, *v,  INSERT_VALUES);
+	MatScale(*diag_2M,2);//store 2*diagonal part of M
 	VecReciprocal(*v);//Must first check that all the coefficients are non zero
 	
 	// Creation of D_M_inv_G = D_M_inv*G = diag(M)^{-1} * G
@@ -161,24 +161,24 @@ void transformSaddlePointMatrix( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * 
 	MatDiagonalScale( D_M_inv_G, v_redistributed, NULL);//D_M_inv_G contains D_M_inv*G
 
 	// Creation of C_hat
-	MatMatMult(D,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&C_hat);//C_hat contains D*D_M_inv*G
-	MatAYPX(C_hat,-1.0,C,SUBSET_NONZERO_PATTERN);//C_hat contains C - D*D_M_inv*G
+	MatMatMult(D,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,C_hat);//C_hat contains D*D_M_inv*G
+	MatAYPX(*C_hat,-1.0,C,SUBSET_NONZERO_PATTERN);//C_hat contains C - D*D_M_inv*G
 
 	// Creation of G_hat
-	MatMatMult(M,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&G_hat);//G_hat contains M*D_M_inv*G
-	MatAYPX(G_hat,-1.0,G,UNKNOWN_NONZERO_PATTERN);//G_hat contains G - M*D_M_inv*G
+	MatMatMult(M,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,G_hat);//G_hat contains M*D_M_inv*G
+	MatAYPX(*G_hat,-1.0,G,UNKNOWN_NONZERO_PATTERN);//G_hat contains G - M*D_M_inv*G
 
 	//Creation of global matrices using MatCreateNest
-	Mat_array[3]=C_hat;//Top left block of A_hat
+	Mat_array[3]=*C_hat;//Top left block of A_hat
 	Mat_array[2]=D;//Top right block of A_hat
-	Mat_array[1]=G_hat;//Bottom left block of A_hat
+	Mat_array[1]=*G_hat;//Bottom left block of A_hat
 	Mat_array[0]=M;//Bottom left block of A_hat
 
 	// Creation of A_hat = reordered A_input
 	MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,A_hat);
 
 	// Creation of Pmat
-	Mat_array[0]=diag_2M;
+	Mat_array[0]=*diag_2M;
 	MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,Pmat);
 
 	PetscPrintf(PETSC_COMM_WORLD,"... matrix transformed \n");	
