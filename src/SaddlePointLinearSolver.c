@@ -178,7 +178,7 @@ void transformSaddlePointMatrix( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * 
 	MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,A_hat);
 
 	// Creation of Pmat
-	Mat_array[0]=*diag_2M;
+	Mat_array[0]=*diag_2M;//Replace M by its diagonal to ease inversion
 	MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,Pmat);
 
 	PetscPrintf(PETSC_COMM_WORLD,"... matrix transformed \n");	
@@ -240,7 +240,7 @@ double computeErrorAndCheck( Vec X_anal, Vec X_output, IS is_U, IS is_P, Vec X_u
 	error=sqrt(error_u*error_u+error_p*error_p);
 	PetscPrintf(PETSC_COMM_WORLD,"L2 Error : ||X_anal - X_num|| = %e, (remember ||X_anal||=1)\n", error);
 
-	PetscCheck( error < 1e-4, PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED, "Linear system did not return accurate solution. Error is too high compared to residual (e>1e-4) : e=%e\n", error);
+	PetscCheck( error < 1e-4, PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED, "Linear system did not return accurate solution. Error ||X-Xanal|| is too high (||X-Xanal||>1e-4) : ||X-Xanal||=%e\n", error);
 
 	return error;
 }
@@ -250,10 +250,10 @@ int solveTransformedSystemForXhat( Mat A_hat, Mat Pmat, IS is_U, IS is_P, Vec b_
 {
 	KSP ksp, *kspArray;
 	PC pc, pc1, pc2;
-	KSPType ksp_type = KSPFGMRES, ksp_type0, ksp_type1;
+	KSPType ksp_type0, ksp_type1,  ksp_type = KSPFBCGS;//BCGS seems very efficient
 	PCType pc_type=PCFIELDSPLIT, pc_type0, pc_type1;
 	int nblocks=2;
-	PCCompositeType pc_composite_type = PC_COMPOSITE_MULTIPLICATIVE;//or ADDITIVE ???
+	PCCompositeType pc_composite_type = PC_COMPOSITE_MULTIPLICATIVE;// MULTIPLICATIVE = block triangular preconditioner, ADDITIVE  = block diagonal preconditioner
 
 	int iter, iter1, iter2;
 
