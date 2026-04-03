@@ -72,11 +72,11 @@ int main( int argc, char **args ){
 
 	VecDuplicate(b_input,&X_hat);// X_hat will store the numerical solution of the transformed system
 
-	transformSaddlePointMatrix(M,G,D,C,&A_hat,&Pmat, &C_hat, &G_hat, &diag_2M,&v);
+	transformSystemRight(M,G,D,C,&A_hat,&Pmat, &C_hat, &G_hat, &diag_2M,&v);
 
 //##### Calling KSP solver and monitor convergence
 
-    solveTransformedSystemForXhat( A_hat, Pmat, is_U, is_P, b_input, &X_hat, rtol,PETSC_DEFAULT,PETSC_DEFAULT, PETSC_DEFAULT, &residu);
+    solveRightTransformedSystemForXhat( A_hat, Pmat, is_U, is_P, b_input, &X_hat, rtol,PETSC_DEFAULT,PETSC_DEFAULT, PETSC_DEFAULT, &residu);
 
 	Vec X_output;
 	Vec X_p;//Pressure components of the main unknown
