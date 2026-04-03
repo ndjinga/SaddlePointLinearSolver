@@ -125,11 +125,11 @@ void buildRHSVector( Mat A_input, PetscInt n_u, PetscInt n_p, Vec * X_anal, Vec 
 	PetscFree(indices);
 }
 
-//##### Application of the transformation A -> A_hat
+//##### Application of the transformation A -> A_hat by multiplication to the right by an upper triangular matrix
 //## Matrices Ghat, Chat, diag_2M and vector v must be deleted by caller
 void transformSystemRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * G_hat, Mat * diag_2M, Vec * v)
 {
-	PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix...\n");
+	PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix by multpliction to the right...\n");
 
 	Vec v_redistributed;
 	Mat D_M_inv_G, Mat_array[4];// D_M_inv = diag(M)^{-1}
@@ -184,6 +184,69 @@ void transformSystemRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, 
 	PetscPrintf(PETSC_COMM_WORLD,"... matrix transformed \n");	
 
 	MatDestroy(&D_M_inv_G);
+	VecScatterDestroy(&scat);
+	VecDestroy(&v_redistributed);
+}
+
+//##### Application of the transformation A -> A_hat (and b -> b_hat) by multiplication to the left by a lower triangular matrix
+//## Matrices Ghat, Chat, diag_2M and vector v must be deleted by caller
+void transformSystemLeft( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * D_hat, Mat * diag_2M, Vec * v, Vec * b_hat)
+{
+	PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix by multpliction to the left...\n");
+
+	Vec v_redistributed;
+	Mat D_DM_inv, Mat_array[4];// D_DM_inv = D*diag(M)^{-1}
+	VecScatter scat;//tool to redistribute a vector on the processors
+	IS is_to, is_from;
+	PetscInt col_min, col_max;
+
+	//Extraction of the diagonal of M
+	MatCreateVecs(M,NULL,v);//v has the size of M
+	MatGetDiagonal(M,*v);
+
+	//Creation of matrix 2*diag(M). Why not use MatCreateDiagonal ???
+	MatDuplicate(M, MAT_DO_NOT_COPY_VALUES, diag_2M);
+	MatEliminateZeros(*diag_2M, PETSC_TRUE);
+	MatDiagonalSet(*diag_2M, *v,  INSERT_VALUES);
+	MatScale(*diag_2M,2);//store 2*diagonal part of M
+	VecReciprocal(*v);//Must first check that all the coefficients are non zero
+	
+	// Creation of D_DM_inv = D*DM_inv = D*diag(M)^{-1}
+	MatDuplicate(D,MAT_COPY_VALUES,&D_DM_inv);//D_DM_inv contains D
+	MatCreateVecs(D_DM_inv,&v_redistributed,NULL);//v_redistributed has the parallel distribution of D_DM_inv
+	VecGetOwnershipRange(*v,&col_min,&col_max);
+	ISCreateStride(PETSC_COMM_WORLD, col_max-col_min, col_min, 1, &is_from);
+	VecGetOwnershipRange(v_redistributed,&col_min,&col_max);
+	ISCreateStride(PETSC_COMM_WORLD, col_max-col_min, col_min, 1, &is_to);
+	VecScatterCreate(*v,is_from,v_redistributed,is_to,&scat);
+	VecScatterBegin(scat, *v, v_redistributed,INSERT_VALUES,SCATTER_FORWARD);
+	VecScatterEnd(  scat, *v, v_redistributed,INSERT_VALUES,SCATTER_FORWARD);
+	MatDiagonalScale( D_DM_inv, NULL, v_redistributed);//D_DM_inv contains D_DM_inv
+
+	// Creation of C_hat
+	MatMatMult(D_DM_inv,G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,C_hat);//C_hat contains D*D_M_inv*G
+	MatAYPX(*C_hat,-1.0,C,SUBSET_NONZERO_PATTERN);//C_hat contains C - D*D_M_inv*G
+
+	// Creation of D_hat
+	MatMatMult(D_DM_inv,M,MAT_INITIAL_MATRIX,PETSC_DEFAULT,D_hat);//G_hat contains D*DM_inv*M
+	MatAYPX(*D_hat,-1.0,D,UNKNOWN_NONZERO_PATTERN);//G_hat contains D - D*DM_inv*M
+
+	//Creation of global matrices using MatCreateNest
+	Mat_array[3]=*C_hat;//Top left block of A_hat
+	Mat_array[2]=*D_hat;//Top right block of A_hat
+	Mat_array[1]=G;//Bottom left block of A_hat
+	Mat_array[0]=M;//Bottom left block of A_hat
+
+	// Creation of A_hat = reordered A_input
+	MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,A_hat);
+
+	// Creation of Pmat
+	Mat_array[0]=*diag_2M;//Replace M by its diagonal to ease inversion
+	MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,Pmat);
+
+	PetscPrintf(PETSC_COMM_WORLD,"... matrix transformed \n");	
+
+	MatDestroy(&D_DM_inv);
 	VecScatterDestroy(&scat);
 	VecDestroy(&v_redistributed);
 }
@@ -243,6 +306,37 @@ double computeErrorAndCheck( Vec X_anal, Vec X_output, IS is_U, IS is_P, Vec X_u
 	PetscCheck( error < 1e-4, PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED, "Linear system did not return accurate solution. Error ||X-Xanal|| is too high (||X-Xanal||>1e-4) : ||X-Xanal||=%e\n", error);
 
 	return error;
+}
+
+//##### Build right hand side b_hat for left preconditioned system
+//User should destroy b_hat after use
+void getbhatFrombinput(Mat D, Vec v, Vec b_input, Vec * b_hat, IS is_U, IS is_P)
+{
+	Vec b_hat_u;//Velocity components of the transformed unknown
+	Vec b_hat_p;//Pressure components of the main unknown
+	Vec b_hat_u_tmp;//Temporary storage for velocity components
+	Vec b_hat_p_tmp;//Temporary storage for pressure components
+	Vec b_array[2];
+
+   	VecDuplicate(b_input,b_hat);// b_hat will store the right hand side of the transformed system
+	VecGetSubVector( b_input, is_P, &b_hat_p);
+	VecGetSubVector( b_input, is_U, &b_hat_u);
+
+   	VecDuplicate(b_hat_u,&b_hat_u_tmp);
+   	VecDuplicate(b_hat_p,&b_hat_p_tmp);
+	VecPointwiseMult(b_hat_u_tmp,b_hat_u,v);
+
+	MatMult( D, b_hat_u, b_hat_p_tmp);
+	VecAYPX( b_hat_p_tmp, -1, b_hat_p);
+
+	b_array[0] = b_hat_u;
+	b_array[1] = b_hat_p;
+
+	//VecCreateNest( PETSC_COMM_WORLD, 2, NULL, b_array, &b_hat);//This generate an error message : "Nest vector argument 3 not setup "
+	VecConcatenate(2, b_array, b_hat, NULL);
+
+	VecDestroy(&b_hat_u_tmp);
+	VecDestroy(&b_hat_p_tmp);
 }
 
 //##### Solve the transformed system for Xhat
