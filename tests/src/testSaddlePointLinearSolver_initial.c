@@ -356,6 +356,8 @@ int main( int argc, char **args ){
 	VecDestroy(&b_hat);
 	VecDestroy(&X_hat);
 	VecDestroy(&X_anal);
+	VecDestroy(&X_u);
+	VecDestroy(&X_p);
 	VecDestroy(&v);
 
 	ISDestroy(&is_U);
