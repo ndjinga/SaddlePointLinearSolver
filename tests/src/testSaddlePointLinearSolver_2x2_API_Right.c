@@ -1,13 +1,11 @@
-static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Parameters : \n -f0 : matrix fileName \n -nU :number of velocity lines \n -nP : number of pressure lines \n -mat_type : PETSc matrix type \n -usePrec : boolean yes or no (default is yes) \n";
+static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Parameters : \n -f0 : matrix fileName \n -nU :number of velocity lines \n -nP : number of pressure lines \n -mat_type : PETSc matrix type \n ";
 
 /*************************************************************************************************/
-/* Sequential implementation of a transform-then-solve preconditioner for the linear system A_{input} X_{output} = b_{input} */
-/*            Find a block triangular matrix T and perform the change of variables  X_hat = T^{-1}X, A_hat = (A_{input}T) */
-/*            Pressure and velocity unknowns are swaped in the transform for convenience reasons */ 
+/* Parallel implementation of a transform-then-solve preconditioner for the linear system A_{input} X_{output} = b_{input} */
+/*            Use an upper block triangular matrix U and perform the change of variables  X_hat = U^{-1}X, A_hat = (A_{input}U) */
 /*                                                                                               */
-/* Description : Sequential file with PC_COMPOSITE of MULTIPLICATIVE type, not restricted to 2x2 blocs.*/
+/* Description : Parallel file with PC_COMPOSITE of MULTIPLICATIVE type, not restricted to 2x2 blocs.*/
 /*               Use of API (class SaddlePointLinearSolve) for better code factorisation         */ 
-/*               Performance is good even when RHS bloc pressure is empty unlike Shat approach   */ 
 /*                                                                                               */
 /* Input  : - Matrix A_{input}    (system matrix, loaded from a file)                            */
 /*          - Vector b_{input}    (right hand side, made up for testing)                         */
@@ -26,7 +24,7 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 /*                                 *D   C*                                                       */
 /*                                                                                               */
 /*                                 *Id  -diag(M)^{-1}G*                    *Id  diag(M)^{-1}G*   */
-/*                        T     = *                    *         T^{-1} = *                   *  */
+/*                        U     = *                    *         U^{-1} = *                   *  */
 /*                                 *0               Id*                    *0              Id*   */
 /*                                                                                               */
 /*                                 *M     G_hat*             G_hat=G - M*diag(M)^{-1}*G          */
