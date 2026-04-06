@@ -2,12 +2,13 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 
 /*************************************************************************************************/
 /* Sequential implementation of a transform-then-solve preconditioner for the linear system A_{input} X_{output} = b_{input} */
-/*            Choose a block triangular matrix T and perform the change of variables  X_hat = T^{-1}X */
+/*            Use a block triangular matrix T and perform the change of variables  X_hat = T^{-1}X */
 /*            Pressure and velocity unknowns are swaped in the transform for convenience reasons, A_hat = P(A_{input}T)P^{-1} */ 
 /*
 /* Description : initial file developped by M.N. Sequential file PC_COMPOSITE of MULTIPLICATIVE type*/
 /*               not restricted to 2x2 blocs unlike Schur composite pc (see Shat approach).      */ 
-/*               Performance is good even when RHS bloc pressure is empty unlike Shat approach   */ 
+/*               Use of KSPPREONLY is faster than KSPGMRES                                       */ 
+/*               Performance is good even when RHS bloc pressure is not empty unlike Shat approach   */ 
 /*                                                                                               */
 /* Input  : - Matrix A_{input}    (system matrix, loaded from a file)                            */
 /*          - Vector b_{input}    (right hand side, made up for testing)                         */
@@ -26,13 +27,9 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 /*                        A     = *       *                                                      */
 /*                                 *D   C*                                                       */
 /*                                                                                               */
-/*                                 *Id  -diag(M)^{-1}G*                    *Id  diag(M)^{-1}G*   */
-/*                        T     = *                    *         T^{-1} = *                   *  */
 /*                                 *0               Id*                    *0              Id*   */
-/*                                                                                               */
-/*                                 *0   Id*                                                       */
-/*                        A     = *        *                                                      */
-/*                                 *Id   0*                                                       */
+/*                        T     = *                    *         T^{-1} = *                   *  */
+/*                                 *Id  -diag(M)^{-1}G*                    *Id  diag(M)^{-1}G*   */
 /*                                                                                               */
 /*                                 *C_hat  -D*                                                   */
 /*                        A_hat = *           *                                                  */

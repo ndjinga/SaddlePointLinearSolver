@@ -405,6 +405,8 @@ int main( int argc, char **args ){
 	VecDestroy(&X_anal);
 	VecDestroy(&v);
 	VecDestroy(&v_redistributed);
+	VecDestroy(&X_u);
+	VecDestroy(&X_p);
 	
 	ISDestroy(&is_U);
 	ISDestroy(&is_P);
@@ -412,6 +414,7 @@ int main( int argc, char **args ){
 	ISDestroy(&is_from);
 
 	KSPDestroy(&ksp);
+	PetscFree(kspArray);
 	VecScatterDestroy(&scat);
 
 	PetscFinalize();
