@@ -49,7 +49,7 @@ if( SaddlePointLinearSolver_WITH_TESTS )
  enable_testing ()
 
  set(MY_TEST_SOURCES
- tests/src/testSaddlePointLinearSolver_initial.c
+ tests/src/testSaddlePointLinearSolver_initial_seq.c
  tests/src/testSaddlePointLinearSolver_2x2_API.c
  tests/src/testSaddlePointLinearSolver_2x2_par.c
  tests/src/testSaddlePointLinearSolver_2x2_par_instrumentation.c
@@ -58,12 +58,12 @@ if( SaddlePointLinearSolver_WITH_TESTS )
  )
 
  # build test main exe
- add_executable(testSaddlePointLinearSolver_initial                      tests/src/testSaddlePointLinearSolver_initial.c)
+ add_executable(testSaddlePointLinearSolver_initial_seq                      tests/src/testSaddlePointLinearSolver_initial_seq.c)
  add_executable(testSaddlePointLinearSolver_initial_Shat                 tests/src/testSaddlePointLinearSolver_initial_Shat.c)
  add_executable(testSaddlePointLinearSolver_2x2_APIRight                 tests/src/testSaddlePointLinearSolver_2x2_API_Right.c)
  add_executable(testSaddlePointLinearSolver_2x2_par                      tests/src/testSaddlePointLinearSolver_2x2_par.c)
  add_executable(testSaddlePointLinearSolver_2x2_par_instrumentation      tests/src/testSaddlePointLinearSolver_2x2_par_instrumentation.c)
- target_include_directories(testSaddlePointLinearSolver_initial                      PRIVATE ${PETSC_INCLUDES} )
+ target_include_directories(testSaddlePointLinearSolver_initial_seq                      PRIVATE ${PETSC_INCLUDES} )
  target_include_directories(testSaddlePointLinearSolver_initial_Shat                 PRIVATE ${PETSC_INCLUDES} )
  target_include_directories(testSaddlePointLinearSolver_2x2_APIRight                 PRIVATE ${PETSC_INCLUDES}  ${MY_HEADERS})
  target_include_directories(testSaddlePointLinearSolver_2x2_par                      PRIVATE ${PETSC_INCLUDES} )
@@ -71,14 +71,14 @@ if( SaddlePointLinearSolver_WITH_TESTS )
 
  target_link_libraries(testSaddlePointLinearSolver_2x2_APIRight SaddlePointLinearSolverLib )
 
- target_link_libraries(testSaddlePointLinearSolver_initial                      ${PETSC_LIBRARIES} ${MPI_HOME}/lib/libmpi.so)
+ target_link_libraries(testSaddlePointLinearSolver_initial_seq                      ${PETSC_LIBRARIES} ${MPI_HOME}/lib/libmpi.so)
  target_link_libraries(testSaddlePointLinearSolver_initial_Shat                 ${PETSC_LIBRARIES} ${MPI_HOME}/lib/libmpi.so)
  target_link_libraries(testSaddlePointLinearSolver_2x2_APIRight                 ${PETSC_LIBRARIES} ${MPI_HOME}/lib/libmpi.so)
  target_link_libraries(testSaddlePointLinearSolver_2x2_par                      ${PETSC_LIBRARIES} ${MPI_HOME}/lib/libmpi.so -lm)
  target_link_libraries(testSaddlePointLinearSolver_2x2_par_instrumentation      ${PETSC_LIBRARIES} ${MPI_HOME}/lib/libmpi.so -lm)
 
-add_test(NAME testSaddlePointLinearSolver_initial_Assembly_1                 COMMAND "./testSaddlePointLinearSolver_initial"                 "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/3DAssemblyMesh/Assembly_PolyMAC_1_vp.petsc" "-nU" "20344" "-nP" "9552" "-pc_fieldsplit_type" "schur" "-pc_fieldsplit_schur_fact_type" "lower" "-fieldsplit_0_ksp_type" "gmres" "-fieldsplit_0_pc_type" "gamg" "-fieldsplit_0_pc_gamg_type" "agg" "-fieldsplit_1_ksp_type" "preonly" "-fieldsplit_1_pc_type" "lu")
- set_property (TEST testSaddlePointLinearSolver_initial_Assembly_1 PROPERTY LABELS "C++ initial PC_COMPOSITE Assembly Assembly_1")     
+add_test(NAME testSaddlePointLinearSolver_initial_seq_Assembly_1                 COMMAND "./testSaddlePointLinearSolver_initial_seq"                 "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/3DAssemblyMesh/Assembly_PolyMAC_1_vp.petsc" "-nU" "20344" "-nP" "9552" "-pc_fieldsplit_type" "schur" "-pc_fieldsplit_schur_fact_type" "lower" "-fieldsplit_0_ksp_type" "gmres" "-fieldsplit_0_pc_type" "gamg" "-fieldsplit_0_pc_gamg_type" "agg" "-fieldsplit_1_ksp_type" "preonly" "-fieldsplit_1_pc_type" "lu")
+ set_property (TEST testSaddlePointLinearSolver_initial_seq_Assembly_1 PROPERTY LABELS "C++ initial_seq PC_COMPOSITE Assembly Assembly_1")     
 add_test(NAME testSaddlePointLinearSolver_initial_Shat_Assembly_1            COMMAND "./testSaddlePointLinearSolver_initial_Shat"            "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/3DAssemblyMesh/Assembly_PolyMAC_1_vp.petsc" "-nU" "20344" "-nP" "9552" "-pc_fieldsplit_type" "schur" "-pc_fieldsplit_schur_fact_type" "lower" "-fieldsplit_0_ksp_type" "gmres" "-fieldsplit_0_pc_type" "gamg" "-fieldsplit_0_pc_gamg_type" "agg" "-fieldsplit_1_ksp_type" "preonly" "-fieldsplit_1_pc_type" "lu" "-emptyPressureRHS" "no")
  set_property (TEST testSaddlePointLinearSolver_initial_Shat_Assembly_1 PROPERTY LABELS "C++ initial PC_SCHUR Shat Assembly Assembly_1")     
 add_test(NAME testSaddlePointLinearSolver_initial_Shat_Assembly_1_emptyPressureRHS            COMMAND "./testSaddlePointLinearSolver_initial_Shat"            "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/3DAssemblyMesh/Assembly_PolyMAC_1_vp.petsc" "-nU" "20344" "-nP" "9552" "-pc_fieldsplit_type" "schur" "-pc_fieldsplit_schur_fact_type" "lower" "-fieldsplit_0_ksp_type" "gmres" "-fieldsplit_0_pc_type" "gamg" "-fieldsplit_0_pc_gamg_type" "agg" "-fieldsplit_1_ksp_type" "preonly" "-fieldsplit_1_pc_type" "lu" "-emptyPressureRHS" "yes")
@@ -115,7 +115,7 @@ if( SaddlePointLinearSolver_WITH_MPI )
  add_test(NAME testSaddlePointLinearSolver_2x2_par_instrumentation_8procs_Assembly_1  COMMAND "${MPIEXEC}" "-n" "8" "./testSaddlePointLinearSolver_2x2_par_instrumentation" "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/3DAssemblyMesh/Assembly_PolyMAC_1_vp.petsc" "-nU" "20344" "-nP" "9552")
 endif( SaddlePointLinearSolver_WITH_MPI )
 
- install(TARGETS testSaddlePointLinearSolver_initial DESTINATION tests)
+ install(TARGETS testSaddlePointLinearSolver_initial_seq DESTINATION tests)
  install(TARGETS testSaddlePointLinearSolver_2x2_APIRight DESTINATION tests)
  install(TARGETS testSaddlePointLinearSolver_2x2_par DESTINATION tests)
 
