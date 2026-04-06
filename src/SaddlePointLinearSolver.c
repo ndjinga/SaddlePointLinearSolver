@@ -190,7 +190,7 @@ void transformSystemRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, 
 
 //##### Application of the transformation A -> A_hat (and b -> b_hat) by multiplication to the left by a lower triangular matrix
 //## Matrices Ghat, Chat, diag_2M and vector v must be deleted by caller
-void transformSystemLeft( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * D_hat, Mat * diag_2M, Vec * v, Vec * b_hat)
+void transformSystemLeft( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * D_hat, Mat * diag_2M, Vec * v)
 {
 	PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix by multpliction to the left...\n");
 
