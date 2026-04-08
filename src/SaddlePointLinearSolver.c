@@ -450,7 +450,7 @@ int solveLeftTransformedSystemForXoutput( Mat Ahat, Mat Pmat, IS is_U, IS is_P, 
 {
 	KSP ksp, *kspArray;
 	PC pc, pc1, pc2;
-	KSPType ksp_type0, ksp_type1,  ksp_type = KSPFBCGS;//BCGS seems very efficient
+	KSPType ksp_type0, ksp_type1,  ksp_type = KSPFBCGS;//FBCGS seems much more efficient than FGMRES
 	PCType pc_type=PCFIELDSPLIT, pc_type0, pc_type1;
 	int nblocks=2, iter, iter1, iter2;//iter = main iteration number, iter1 and iter2 are sub iteration numbers
 	PCCompositeType pc_composite_type = PC_COMPOSITE_MULTIPLICATIVE;// MULTIPLICATIVE = block triangular preconditioner, ADDITIVE  = block diagonal preconditioner
