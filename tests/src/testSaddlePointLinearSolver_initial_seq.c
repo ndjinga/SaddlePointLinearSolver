@@ -7,7 +7,7 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 /*
 /* Description : initial file developped by M.N. Sequential file PC_COMPOSITE of MULTIPLICATIVE type*/
 /*               not restricted to 2x2 blocs unlike Schur composite pc (see Shat approach).      */ 
-/*               Use of KSPPREONLY is faster than KSPGMRES                                       */ 
+/*               Use of KSPFGMRES for global solve and KSPGMRES  for subsolvers                  */ 
 /*               Performance is good even when RHS bloc pressure is not empty unlike Shat approach   */ 
 /*                                                                                               */
 /* Input  : - Matrix A_{input}    (system matrix, loaded from a file)                            */
@@ -224,8 +224,8 @@ int main( int argc, char **args ){
 		PCFieldSplitSetIS(pc, "1",is_P_hat);//The order here matters a lot between this line and the next
 		PCFieldSplitSetIS(pc, "0",is_U_hat);//The order here matters a lot between this line and the previous
 		PCFieldSplitGetSubKSP( pc, &nsplit, &subksp);
-		KSPSetType( subksp[0], KSPPREONLY);
-		KSPSetType( subksp[1], KSPPREONLY);
+		KSPSetType( subksp[0], KSPGMRES);
+		KSPSetType( subksp[1], KSPGMRES);
 		KSPGetPC(subksp[0], &subpc0);
 		KSPGetPC(subksp[1], &subpc1);
 		    PCSetType( subpc0, PCJACOBI);
