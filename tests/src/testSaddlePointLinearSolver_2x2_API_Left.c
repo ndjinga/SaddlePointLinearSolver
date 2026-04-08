@@ -24,17 +24,17 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 /*                        A     = *       *                                                      */
 /*                                 *D   C*                                                       */
 /*                                                                                               */
-/*                                 *Id  -diag(M)^{-1}G*                    *Id  diag(M)^{-1}G*   */
+/*                                 *Id               0*                    *Id              0*   */
 /*                        T     = *                    *         T^{-1} = *                   *  */
-/*                                 *0               Id*                    *0              Id*   */
+/*                                 *-D*diag(M)^{-1} Id*                    *D*diag(M)^{-1} Id*   */
 /*                                                                                               */
-/*                                 *M     G_hat*             G_hat=G - M*diag(M)^{-1}*G          */
-/*                        A_hat = *             *                                                */
-/*                                 *D     C_hat*             C_hat=C - D*diag(M)^{-1}*G          */
+/*                                 *M           G*             D_hat=D - D*diag(M)^{-1}*M          */
+/*                        A_hat = *               *                                                */
+/*                                 *D_hat   C_hat*             C_hat=C - D*diag(M)^{-1}*G          */
 /*                                                                                               */
-/*                                 *2 diag(M)     0  *                                           */
+/*                                 *2 diag(M)     G  *                                           */
 /*                        Pmat  = *                   *                                          */
-/*                                 *D          C_hat *                                           */
+/*                                 *0          C_hat *                                           */
 /*                                                                                               */
 /*************************************************************************************************/
 
@@ -51,7 +51,7 @@ int main( int argc, char **args ){
 	Mat A_input, A_hat, Pmat, C_hat, G_hat, diag_2M;
 	Mat M, G, D, C;
 	IS is_U,is_P;
-	Vec b_input, X_hat, X_anal;
+	Vec b_input, b_hat, X_output, X_anal;
 	Vec v;
 	double error,  rtol=1e-7, residu;
 
@@ -63,27 +63,26 @@ int main( int argc, char **args ){
 	PetscOptionsGetInt(NULL,NULL,"-nU",&n_u,NULL);
 	PetscOptionsGetInt(NULL,NULL,"-nP",&n_p,NULL);
 	n=n_u+n_p;
+    
 	loadPETScMat( file[0], mat_type, &A_input, n_u, n_p);
 	
 	splitPETScMatrix2x2(   A_input, n_u, n_p, &M, &G, &D, &C, &is_U, &is_P);
 
 	buildRHSVector( A_input, n_u, n_p, &X_anal, &b_input);
 
-	VecDuplicate(b_input,&b_hat);// b_hat will store the RHS of the transformed system
-
-	transformSystemLeft(M,G,D,C,&A_hat,&Pmat, &C_hat, &G_hat, &diag_2M,&v, &b_hat);
-
-//##### Calling KSP solver and monitor convergence
+	transformSystemLeft(M,G,D,C,&A_hat,&Pmat, &C_hat, &G_hat, &diag_2M, &v);
 
     getbhatFrombinput( D, v, b_input, &b_hat, is_U, is_P);
-    solveLeftTransformedSystemForXhat( A_hat, Pmat, is_U, is_P, b_input, &X_hat, rtol,PETSC_DEFAULT,PETSC_DEFAULT, PETSC_DEFAULT, &residu);
 
-	Vec X_output;
+//##### Calling KSP solver and monitor convergence
+	VecDuplicate( X_anal, &X_output);
+    solveLeftTransformedSystemForXoutput( A_hat, Pmat, is_U, is_P, b_hat, &X_output, rtol,PETSC_DEFAULT,PETSC_DEFAULT, PETSC_DEFAULT, &residu);
+
 	Vec X_p;//Pressure components of the main unknown
 	Vec X_u;//Velocity components of the transformed unknown
+	PetscCall( VecGetSubVector( X_output, is_P, &X_p) );
+	PetscCall( VecGetSubVector( X_output, is_U, &X_u) );
 
-	getSolutionFromXhat(G, v, X_hat, &X_output, &X_u, &X_p, is_U, is_P);
-	
 	error = computeErrorAndCheck( X_anal, X_output, is_U, is_P, X_u, X_p);	
 	PetscCheck( error < 1e6*residu, PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED, "Linear system did not return accurate solution. Error is too high compared to residual (e>1e6*r) : e=%e, r=%e\n", error, residu);
 	
@@ -101,7 +100,7 @@ int main( int argc, char **args ){
 	//MatDestroy(&diag_2M);
 
 	VecDestroy(&b_input);
-	VecDestroy(&X_hat);
+	VecDestroy(&b_hat);
 	VecDestroy(&X_anal);
 	VecDestroy(&v);
 	VecDestroy(&X_u);

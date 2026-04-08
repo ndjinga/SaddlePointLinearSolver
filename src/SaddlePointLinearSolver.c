@@ -228,8 +228,8 @@ void transformSystemLeft( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, M
 	MatAYPX(*C_hat,-1.0,C,SUBSET_NONZERO_PATTERN);//C_hat contains C - D*D_M_inv*G
 
 	// Creation of D_hat
-	MatMatMult(D_DM_inv,M,MAT_INITIAL_MATRIX,PETSC_DEFAULT,D_hat);//G_hat contains D*DM_inv*M
-	MatAYPX(*D_hat,-1.0,D,UNKNOWN_NONZERO_PATTERN);//G_hat contains D - D*DM_inv*M
+	MatMatMult(D_DM_inv,M,MAT_INITIAL_MATRIX,PETSC_DEFAULT,D_hat);//D_hat contains D*DM_inv*M
+	MatAYPX(*D_hat,-1.0,D,UNKNOWN_NONZERO_PATTERN);//D_hat contains D - D*DM_inv*M
 
 	//Creation of global matrices using MatCreateNest
 	Mat_array[3]=*C_hat;//Top left block of A_hat
@@ -310,30 +310,30 @@ double computeErrorAndCheck( Vec X_anal, Vec X_output, IS is_U, IS is_P, Vec X_u
 
 //##### Build right hand side b_hat for left preconditioned system
 //User should destroy b_hat after use
-void getbhatFrombinput(Mat D, Vec v, Vec b_input, Vec * b_hat, IS is_U, IS is_P)
+int getbhatFrombinput(Mat D, Vec v, Vec b_input, Vec * b_hat, IS is_U, IS is_P)
 {
 	Vec b_hat_u;//Velocity components of the transformed unknown
 	Vec b_hat_p;//Pressure components of the main unknown
 	Vec b_hat_u_tmp;//Temporary storage for velocity components
 	Vec b_hat_p_tmp;//Temporary storage for pressure components
 	Vec b_array[2];
+    
+   	PetscCall( VecDuplicate(b_input,b_hat) );// b_hat will store the right hand side of the transformed system
+	PetscCall( VecGetSubVector( b_input, is_P, &b_hat_p) );
+	PetscCall( VecGetSubVector( b_input, is_U, &b_hat_u) );
 
-   	VecDuplicate(b_input,b_hat);// b_hat will store the right hand side of the transformed system
-	VecGetSubVector( b_input, is_P, &b_hat_p);
-	VecGetSubVector( b_input, is_U, &b_hat_u);
+   	PetscCall( VecDuplicate(b_hat_u,&b_hat_u_tmp) );
+   	PetscCall( VecDuplicate(b_hat_p,&b_hat_p_tmp) );
+	PetscCall( VecPointwiseMult(b_hat_u_tmp,b_hat_u,v) );
 
-   	VecDuplicate(b_hat_u,&b_hat_u_tmp);
-   	VecDuplicate(b_hat_p,&b_hat_p_tmp);
-	VecPointwiseMult(b_hat_u_tmp,b_hat_u,v);
-
-	MatMult( D, b_hat_u, b_hat_p_tmp);
-	VecAYPX( b_hat_p_tmp, -1, b_hat_p);
+	PetscCall( MatMult( D, b_hat_u_tmp, b_hat_p_tmp) );
+	PetscCall( VecAXPY( b_hat_p, -1, b_hat_p_tmp) );
 
 	b_array[0] = b_hat_u;
 	b_array[1] = b_hat_p;
 
 	//VecCreateNest( PETSC_COMM_WORLD, 2, NULL, b_array, &b_hat);//This generate an error message : "Nest vector argument 3 not setup "
-	VecConcatenate(2, b_array, b_hat, NULL);
+	PetscCall( VecConcatenate(2, b_array, b_hat, NULL) );
 
 	VecDestroy(&b_hat_u_tmp);
 	VecDestroy(&b_hat_p_tmp);
@@ -352,7 +352,7 @@ int solveRightTransformedSystemForXhat( Mat A_hat, Mat Pmat, IS is_U, IS is_P, V
 	PetscPrintf(PETSC_COMM_WORLD,"Definition of the solver ...\n");
 	KSPCreate(PETSC_COMM_WORLD,&ksp);
 	KSPSetType(ksp, ksp_type);
-	KSPSetOperators(ksp,A_hat,Pmat);
+	PetscCall( KSPSetOperators(ksp,A_hat,Pmat) );
 	KSPSetTolerances(ksp,rtol, abstol, dtol, numberMaxOfIter);
 	KSPGetPC(ksp,&pc);
 	PetscPrintf(PETSC_COMM_WORLD,"Setting the preconditioner %s...\n", pc_type);
@@ -370,10 +370,10 @@ int solveRightTransformedSystemForXhat( Mat A_hat, Mat Pmat, IS is_U, IS is_P, V
     PCSetType( pc1, PCJACOBI);
     PCSetType( pc2, PCGAMG);
 
-	PCSetFromOptions(pc);
-	PCSetUp(pc);
-	KSPSetFromOptions(ksp);
-	KSPSetUp(ksp);
+	PetscCall( PCSetFromOptions(pc) );
+	PetscCall( PCSetUp(pc) );
+	PetscCall( KSPSetFromOptions(ksp) );
+	PetscCall( KSPSetUp(ksp) );
 	PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system...\n");
 
 	PetscCall( KSPSolve(ksp,b_input, *X_hat) );
@@ -453,13 +453,13 @@ int solveLeftTransformedSystemForXoutput( Mat Ahat, Mat Pmat, IS is_U, IS is_P, 
 	KSPType ksp_type0, ksp_type1,  ksp_type = KSPFBCGS;//FBCGS seems much more efficient than FGMRES
 	PCType pc_type=PCFIELDSPLIT, pc_type0, pc_type1;
 	int nblocks=2, iter, iter1, iter2;//iter = main iteration number, iter1 and iter2 are sub iteration numbers
-	PCCompositeType pc_composite_type = PC_COMPOSITE_MULTIPLICATIVE;// MULTIPLICATIVE = block triangular preconditioner, ADDITIVE  = block diagonal preconditioner
+	PCCompositeType pc_composite_type = PC_COMPOSITE_MULTIPLICATIVE;// MULTIPLICATIVE = block lower triangular preconditioner, ADDITIVE  = block diagonal preconditioner
 
 	PetscPrintf(PETSC_COMM_WORLD,"Definition of the solver ...\n");
-	KSPCreate(PETSC_COMM_WORLD,&ksp);
-	KSPSetType(ksp, ksp_type);
-	KSPSetOperators(ksp,Ahat,Pmat);
-	KSPSetTolerances(ksp,rtol, abstol, dtol, numberMaxOfIter);
+	PetscCall( KSPCreate(PETSC_COMM_WORLD,&ksp) );
+	PetscCall( KSPSetType(ksp, ksp_type) );
+	PetscCall( KSPSetOperators(ksp,Ahat,Pmat) );
+	PetscCall( KSPSetTolerances(ksp,rtol, abstol, dtol, numberMaxOfIter) );
 	KSPGetPC(ksp,&pc);
 	PetscPrintf(PETSC_COMM_WORLD,"Setting the preconditioner %s...\n", pc_type);
 	PCSetType(pc,pc_type);
@@ -476,10 +476,10 @@ int solveLeftTransformedSystemForXoutput( Mat Ahat, Mat Pmat, IS is_U, IS is_P, 
     PCSetType( pc1, PCJACOBI);
     PCSetType( pc2, PCGAMG);
 
-	PCSetFromOptions(pc);
-	PCSetUp(pc);
-	KSPSetFromOptions(ksp);
-	KSPSetUp(ksp);
+	PetscCall( PCSetFromOptions(pc) );
+	PetscCall( PCSetUp(pc) );
+	PetscCall( KSPSetFromOptions(ksp) );
+	PetscCall( KSPSetUp(ksp) );
 	PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system...\n");
 
 	PetscCall( KSPSolve(ksp,b_hat, *X_output) );
