@@ -55,6 +55,10 @@ int main( int argc, char **args ){
 	Vec v;
 	double error,  rtol=1e-7, residu;
 
+	PetscLogStage  linear_system_stage;
+	PetscEventPerfInfo info_linear_system_stage;
+	PetscLogDefaultBegin();//This is somehow equivalent to the command line option -log_view but does not display info in the terminal
+
 	PetscBool flg;
 	PetscOptionsGetString(NULL,NULL,"-f0",file[0],PETSC_MAX_PATH_LEN,&flg);
 	PetscStrcpy(mat_type,MATAIJ);// Default value for PETSc Matrix type
@@ -71,6 +75,8 @@ int main( int argc, char **args ){
 	buildRHSVector( A_input, n_u, n_p, &X_anal, &b_input);
 
     PetscBool useLowerTriangularTransform = PETSC_TRUE;
+	PetscLogStageRegister("Résolution du système linéaire", &linear_system_stage);//Instrumentation : début de la résolution du second membre
+	PetscLogStagePush( linear_system_stage);//Instrumentation
 	transformSystemLeft(M,G,D,C,&A_hat,&Pmat, &C_hat, &D_hat, &diag_2M, &v, useLowerTriangularTransform);
 
     getbhatFrombinput( D, v, b_input, &b_hat, is_U, is_P, useLowerTriangularTransform);
@@ -87,6 +93,9 @@ int main( int argc, char **args ){
     }
 
     solveLeftTransformedSystemForXoutput( A_hat, Pmat, is_U, is_P, b_hat, &X_output, rtol,PETSC_DEFAULT,PETSC_DEFAULT, PETSC_DEFAULT, &residu, useLowerTriangularTransform);
+	PetscLogStagePop();//Instrumentation : fin de la résolution du second membre
+	PetscLogStageGetPerfInfo( linear_system_stage, &info_linear_system_stage);
+	PetscPrintf(PETSC_COMM_WORLD, "\nTime taken to solve the linear system : %e \n",info_linear_system_stage.time);
 
 	Vec X_p;//Pressure components of the main unknown
 	Vec X_u;//Velocity components of the transformed unknown

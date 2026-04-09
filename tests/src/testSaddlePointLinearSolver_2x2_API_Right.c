@@ -54,6 +54,10 @@ int main( int argc, char **args ){
 	Vec v;
 	double error,  rtol=1e-7, residu;
 
+	PetscLogStage  linear_system_stage;
+	PetscEventPerfInfo info_linear_system_stage;
+	PetscLogDefaultBegin();//This is somehow equivalent to the command line option -log_view but does not display info in the terminal
+
 	PetscBool flg;
 	PetscOptionsGetString(NULL,NULL,"-f0",file[0],PETSC_MAX_PATH_LEN,&flg);
 	PetscStrcpy(mat_type,MATAIJ);// Default value for PETSc Matrix type
@@ -70,6 +74,8 @@ int main( int argc, char **args ){
 
 	VecDuplicate(b_input,&X_hat);// X_hat will store the numerical solution of the transformed system
 
+	PetscLogStageRegister("Résolution du système linéaire", &linear_system_stage);//Instrumentation : début de la résolution du second membre
+	PetscLogStagePush( linear_system_stage);//Instrumentation
 	transformSystemRight(M,G,D,C,&A_hat,&Pmat, &C_hat, &G_hat, &diag_2M,&v);
 
 //##### Calling KSP solver and monitor convergence
@@ -81,6 +87,10 @@ int main( int argc, char **args ){
 	Vec X_u;//Velocity components of the transformed unknown
 
 	getSolutionFromXhat(G, v, X_hat, &X_output, &X_u, &X_p, is_U, is_P);
+
+	PetscLogStagePop();//Instrumentation : fin de la résolution du second membre
+	PetscLogStageGetPerfInfo( linear_system_stage, &info_linear_system_stage);
+	PetscPrintf(PETSC_COMM_WORLD, "\nTime taken to solve the linear system : %e \n\n",info_linear_system_stage.time);
 	
 	error = computeErrorAndCheck( X_anal, X_output, is_U, is_P, X_u, X_p);	
 	PetscCheck( error < 1e6*residu, PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED, "Linear system did not return accurate solution. Error is too high compared to residual (e>1e6*r) : e=%e, r=%e\n", error, residu);
@@ -93,10 +103,6 @@ int main( int argc, char **args ){
 	MatDestroy(&D);	
 	MatDestroy(&G);
 	MatDestroy(&C);
-    /* Generate errors */
-	//MatDestroy(&G_hat);
-	//MatDestroy(&C_hat);
-	//MatDestroy(&diag_2M);
 
 	VecDestroy(&b_input);
 	VecDestroy(&X_hat);
