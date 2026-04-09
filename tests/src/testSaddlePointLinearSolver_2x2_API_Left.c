@@ -70,7 +70,7 @@ int main( int argc, char **args ){
 
 	buildRHSVector( A_input, n_u, n_p, &X_anal, &b_input);
 
-    PetscBool useLowerTriangularTransform = PETSC_FALSE;
+    PetscBool useLowerTriangularTransform = PETSC_TRUE;
 	transformSystemLeft(M,G,D,C,&A_hat,&Pmat, &C_hat, &D_hat, &diag_2M, &v, useLowerTriangularTransform);
 
     getbhatFrombinput( D, v, b_input, &b_hat, is_U, is_P, useLowerTriangularTransform);
