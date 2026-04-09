@@ -129,7 +129,7 @@ void buildRHSVector( Mat A_input, PetscInt n_u, PetscInt n_p, Vec * X_anal, Vec 
 //## Matrices Ghat, Chat, diag_2M and vector v must be deleted by caller
 void transformSystemRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * G_hat, Mat * diag_2M, Vec * v)
 {
-	PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix by multpliction to the right...\n");
+	PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix by multiplication to the right...\n");
 
 	Vec v_redistributed;
 	Mat D_M_inv_G, Mat_array[4];// D_M_inv = diag(M)^{-1}
@@ -183,6 +183,9 @@ void transformSystemRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, 
 
 	PetscPrintf(PETSC_COMM_WORLD,"... matrix transformed \n");	
 
+    MatDestroy(diag_2M);
+    MatDestroy(C_hat);
+    MatDestroy(G_hat);
 	MatDestroy(&D_M_inv_G);
 	VecScatterDestroy(&scat);
 	VecDestroy(&v_redistributed);
@@ -190,9 +193,9 @@ void transformSystemRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, 
 
 //##### Application of the transformation A -> A_hat (and b -> b_hat) by multiplication to the left by a lower triangular matrix
 //## Matrices Ghat, Chat, diag_2M and vector v must be deleted by caller
-void transformSystemLeft( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * D_hat, Mat * diag_2M, Vec * v)
+int transformSystemLeft( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * D_hat, Mat * diag_2M, Vec * v, PetscBool useLowerTriangularTransform)
 {
-	PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix by multpliction to the left...\n");
+	PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix by multiplication to the left...\n");
 
 	Vec v_redistributed;
 	Mat D_DM_inv, Mat_array[4];// D_DM_inv = D*diag(M)^{-1}
@@ -205,14 +208,14 @@ void transformSystemLeft( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, M
 	MatGetDiagonal(M,*v);
 
 	//Creation of matrix 2*diag(M). Why not use MatCreateDiagonal ???
-	MatDuplicate(M, MAT_DO_NOT_COPY_VALUES, diag_2M);
+	PetscCall( MatDuplicate(M, MAT_DO_NOT_COPY_VALUES, diag_2M) );
 	MatEliminateZeros(*diag_2M, PETSC_TRUE);
 	MatDiagonalSet(*diag_2M, *v,  INSERT_VALUES);
 	MatScale(*diag_2M,2);//store 2*diagonal part of M
 	VecReciprocal(*v);//Must first check that all the coefficients are non zero
 	
 	// Creation of D_DM_inv = D*DM_inv = D*diag(M)^{-1}
-	MatDuplicate(D,MAT_COPY_VALUES,&D_DM_inv);//D_DM_inv contains D
+	PetscCall( MatDuplicate(D,MAT_COPY_VALUES,&D_DM_inv) );//D_DM_inv contains D
 	MatCreateVecs(D_DM_inv,&v_redistributed,NULL);//v_redistributed has the parallel distribution of D_DM_inv
 	VecGetOwnershipRange(*v,&col_min,&col_max);
 	ISCreateStride(PETSC_COMM_WORLD, col_max-col_min, col_min, 1, &is_from);
@@ -232,20 +235,36 @@ void transformSystemLeft( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, M
 	MatAYPX(*D_hat,-1.0,D,UNKNOWN_NONZERO_PATTERN);//D_hat contains D - D*DM_inv*M
 
 	//Creation of global matrices using MatCreateNest
-	Mat_array[3]=*C_hat;//Top left block of A_hat
-	Mat_array[2]=*D_hat;//Top right block of A_hat
-	Mat_array[1]=G;//Bottom left block of A_hat
-	Mat_array[0]=M;//Bottom left block of A_hat
+    if( useLowerTriangularTransform )
+    {
+	Mat_array[0]=*C_hat;//Top left block of A_hat
+	Mat_array[1]=*D_hat;//Top right block of A_hat
+	Mat_array[3]=M;//Bottom left block of A_hat
+	Mat_array[2]=G;//Bottom left block of A_hat
+    }
+    else
+    {
+	Mat_array[3]=*C_hat;
+	Mat_array[2]=*D_hat;
+	Mat_array[0]=M;
+	Mat_array[1]=G;
+    }
 
 	// Creation of A_hat = reordered A_input
 	MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,A_hat);
 
 	// Creation of Pmat
-	Mat_array[0]=*diag_2M;//Replace M by its diagonal to ease inversion
+    if( useLowerTriangularTransform )
+	    Mat_array[3]=*diag_2M;//Replace M by its diagonal to ease inversion
+    else
+	    Mat_array[0]=*diag_2M;//Replace M by its diagonal to ease inversion
 	MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,Pmat);
 
 	PetscPrintf(PETSC_COMM_WORLD,"... matrix transformed \n");	
 
+    MatDestroy(diag_2M);
+    MatDestroy(C_hat);
+    MatDestroy(D_hat);
 	MatDestroy(&D_DM_inv);
 	VecScatterDestroy(&scat);
 	VecDestroy(&v_redistributed);
@@ -310,7 +329,7 @@ double computeErrorAndCheck( Vec X_anal, Vec X_output, IS is_U, IS is_P, Vec X_u
 
 //##### Build right hand side b_hat for left preconditioned system
 //User should destroy b_hat after use
-int getbhatFrombinput(Mat D, Vec v, Vec b_input, Vec * b_hat, IS is_U, IS is_P)
+int getbhatFrombinput(Mat D, Vec v, Vec b_input, Vec * b_hat, IS is_U, IS is_P, PetscBool useLowerTriangularTransform)
 {
 	Vec b_hat_u;//Velocity components of the transformed unknown
 	Vec b_hat_p;//Pressure components of the main unknown
@@ -329,8 +348,16 @@ int getbhatFrombinput(Mat D, Vec v, Vec b_input, Vec * b_hat, IS is_U, IS is_P)
 	PetscCall( MatMult( D, b_hat_u_tmp, b_hat_p_tmp) );
 	PetscCall( VecAXPY( b_hat_p, -1, b_hat_p_tmp) );
 
-	b_array[0] = b_hat_u;
-	b_array[1] = b_hat_p;
+    if( useLowerTriangularTransform )
+    {
+	    b_array[0] = b_hat_p;
+	    b_array[1] = b_hat_u;
+    }
+    else
+    {
+	    b_array[0] = b_hat_u;
+	    b_array[1] = b_hat_p;
+    }
 
 	//VecCreateNest( PETSC_COMM_WORLD, 2, NULL, b_array, &b_hat);//This generate an error message : "Nest vector argument 3 not setup "
 	PetscCall( VecConcatenate(2, b_array, b_hat, NULL) );
@@ -370,8 +397,6 @@ int solveRightTransformedSystemForXhat( Mat A_hat, Mat Pmat, IS is_U, IS is_P, V
     PCSetType( pc1, PCJACOBI);
     PCSetType( pc2, PCGAMG);
 
-	PetscCall( PCSetFromOptions(pc) );
-	PetscCall( PCSetUp(pc) );
 	PetscCall( KSPSetFromOptions(ksp) );
 	PetscCall( KSPSetUp(ksp) );
 	PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system...\n");
@@ -446,7 +471,7 @@ int solveRightTransformedSystemForXhat( Mat A_hat, Mat Pmat, IS is_U, IS is_P, V
 }
 
 //##### Solve the left transformed system for Xoutput
-int solveLeftTransformedSystemForXoutput( Mat Ahat, Mat Pmat, IS is_U, IS is_P, Vec b_hat, Vec * X_output, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double * residu)
+int solveLeftTransformedSystemForXoutput( Mat Ahat, Mat Pmat, IS is_U, IS is_P, Vec b_hat, Vec * X_output, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double * residu, PetscBool useLowerTriangularTransform)
 {
 	KSP ksp, *kspArray;
 	PC pc, pc1, pc2;
@@ -465,19 +490,25 @@ int solveLeftTransformedSystemForXoutput( Mat Ahat, Mat Pmat, IS is_U, IS is_P, 
 	PCSetType(pc,pc_type);
 
 	PCFieldSplitSetType(pc, pc_composite_type);
-	PCFieldSplitSetIS(pc, "0",is_U);//The order here matters a lot between this line and the next
-	PCFieldSplitSetIS(pc, "1",is_P);//The order here matters a lot between this line and the previous
+	PCFieldSplitSetIS(pc, "0",is_P);//The order here matters a lot between this line and the next
+	PCFieldSplitSetIS(pc, "1",is_U);//The order here matters a lot between this line and the previous
 	PCFieldSplitGetSubKSP( pc, &nblocks, &kspArray);
 	KSPSetType( kspArray[0], KSPPREONLY);
 	KSPSetType( kspArray[1], KSPPREONLY);
 	KSPGetPC(kspArray[0], &pc1);
 	KSPGetPC(kspArray[1], &pc2);
 
-    PCSetType( pc1, PCJACOBI);
+    if( useLowerTriangularTransform )
+    {
+    PCSetType( pc1, PCGAMG);
+    PCSetType( pc2, PCJACOBI);
+    }
+    else
+    {
     PCSetType( pc2, PCGAMG);
+    PCSetType( pc1, PCJACOBI);
+    }
 
-	PetscCall( PCSetFromOptions(pc) );
-	PetscCall( PCSetUp(pc) );
 	PetscCall( KSPSetFromOptions(ksp) );
 	PetscCall( KSPSetUp(ksp) );
 	PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system...\n");

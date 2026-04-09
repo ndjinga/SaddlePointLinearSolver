@@ -48,7 +48,7 @@ int main( int argc, char **args ){
 	MPI_Comm_size(PETSC_COMM_WORLD,&size);
 	PetscInt n_u, n_p, n;//Total number of velocity and pressure lines. n = n_u+ n_p
 	char file[1][PETSC_MAX_PATH_LEN], mat_type[256]; // File to load, matrix type
-	Mat A_input, A_hat, Pmat, C_hat, G_hat, diag_2M;
+	Mat A_input, A_hat, Pmat,  C_hat, D_hat, diag_2M;
 	Mat M, G, D, C;
 	IS is_U,is_P;
 	Vec b_input, b_hat, X_output, X_anal;
@@ -70,18 +70,35 @@ int main( int argc, char **args ){
 
 	buildRHSVector( A_input, n_u, n_p, &X_anal, &b_input);
 
-	transformSystemLeft(M,G,D,C,&A_hat,&Pmat, &C_hat, &G_hat, &diag_2M, &v);
+    PetscBool useLowerTriangularTransform = PETSC_FALSE;
+	transformSystemLeft(M,G,D,C,&A_hat,&Pmat, &C_hat, &D_hat, &diag_2M, &v, useLowerTriangularTransform);
 
-    getbhatFrombinput( D, v, b_input, &b_hat, is_U, is_P);
+    getbhatFrombinput( D, v, b_input, &b_hat, is_U, is_P, useLowerTriangularTransform);
 
 //##### Calling KSP solver and monitor convergence
 	VecDuplicate( X_anal, &X_output);
-    solveLeftTransformedSystemForXoutput( A_hat, Pmat, is_U, is_P, b_hat, &X_output, rtol,PETSC_DEFAULT,PETSC_DEFAULT, PETSC_DEFAULT, &residu);
+
+    /* In order to work with lower triangular matrices we need to swap u and p in the unknown vector */
+    /* Change the index set because of the permutation u<->p in the unknown vector */
+    if( useLowerTriangularTransform )
+    {
+	ISShift( is_U,  n_p, is_U);
+	ISShift( is_P, -n_u, is_P);        
+    }
+
+    solveLeftTransformedSystemForXoutput( A_hat, Pmat, is_U, is_P, b_hat, &X_output, rtol,PETSC_DEFAULT,PETSC_DEFAULT, PETSC_DEFAULT, &residu, useLowerTriangularTransform);
 
 	Vec X_p;//Pressure components of the main unknown
 	Vec X_u;//Velocity components of the transformed unknown
 	PetscCall( VecGetSubVector( X_output, is_P, &X_p) );
 	PetscCall( VecGetSubVector( X_output, is_U, &X_u) );
+
+    /* Change the index set because of the permutation u<->p in the unknown vector */
+    if( useLowerTriangularTransform )
+    {
+	ISShift( is_U, -n_p, is_U);
+	ISShift( is_P,  n_u, is_P);        
+    }
 
 	error = computeErrorAndCheck( X_anal, X_output, is_U, is_P, X_u, X_p);	
 	PetscCheck( error < 1e6*residu, PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED, "Linear system did not return accurate solution. Error is too high compared to residual (e>1e6*r) : e=%e, r=%e\n", error, residu);
@@ -94,10 +111,7 @@ int main( int argc, char **args ){
 	MatDestroy(&D);	
 	MatDestroy(&G);
 	MatDestroy(&C);
-    /* Generate errors */
-	//MatDestroy(&G_hat);
-	//MatDestroy(&C_hat);
-	//MatDestroy(&diag_2M);
+MatDestroy(&diag_2M);
 
 	VecDestroy(&b_input);
 	VecDestroy(&b_hat);
