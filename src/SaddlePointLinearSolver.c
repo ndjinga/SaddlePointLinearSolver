@@ -651,12 +651,12 @@ int solveLeftTransformedSystemForXoutput( Mat Ahat, Mat Pmat, IS is_U, IS is_P, 
 /*                                 *Dhat          C_hat2 *                                       */
 /*                                                                                               */
 /*************************************************************************************************/
-int transformSystemLeftRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * G_hat, Mat * D_hat, Mat * diag_2M, Vec * v)
+int transformSystemLeftRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * G_hat, Mat * D_hat, Mat * C_hat2, Mat * diag_2M, Vec * v)
 {
     PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix A_input by multiplication to the left and the right : Ahat = L*A_input*U ...\n");
 
     Vec v_redistributed;
-    Mat D_M_inv_G, D_DM_inv, *C_hat2, Mat_array[4];// D_M_inv = diag(M)^{-1}, D_DM_inv = D*diag(M)^{-1}
+    Mat D_M_inv_G, D_DM_inv, Mat_array[4];// D_M_inv = diag(M)^{-1}, D_DM_inv = D*diag(M)^{-1}
     VecScatter scat;//tool to redistribute a vector on the processors
     IS is_to, is_from;
     PetscInt col_min, col_max;
@@ -703,16 +703,17 @@ int transformSystemLeftRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pma
     MatAYPX(*C_hat2,-1.0,*C_hat,SUBSET_NONZERO_PATTERN);//C_hat2 contains Chat - D*D_M_inv*Ghat
 
     //Creation of global matrices using MatCreateNest
-    Mat_array[3]=*C_hat2;//Top left block of A_hat
-    Mat_array[2]=*D_hat;//Top right block of A_hat
-    Mat_array[1]=*G_hat;//Bottom left block of A_hat
-    Mat_array[0]=M;//Bottom left block of A_hat
+    Mat_array[3]=*C_hat2;//Bottom right block of A_hat
+    Mat_array[2]=*D_hat;//Bottom left block of A_hat
+    Mat_array[1]=*G_hat;//Top right block of A_hat
+    Mat_array[0]=M;//Top left block of A_hat
 
     // Creation of A_hat = reordered A_input
     MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,A_hat);
 
     // Creation of Pmat
     Mat_array[0]=*diag_2M;//Replace M by its diagonal to ease inversion
+    Mat_array[3]=*C_hat;//Bottom right block of Pmat
     MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,Pmat);
 
     PetscPrintf(PETSC_COMM_WORLD,"... matrix transformed \n");    

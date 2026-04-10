@@ -6,7 +6,7 @@ int splitPETScMatrix2x2(Mat A_input, PetscInt n_u, PetscInt n_p, Mat * M, Mat * 
 void buildRHSVector( Mat A_input, PetscInt n_u, PetscInt n_p, Vec * X_anal, Vec * b_input);
 int transformSystemRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * G_hat, Mat * diag_2M, Vec * v);
 int transformSystemLeft(  Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * D_hat, Mat * diag_2M, Vec * v, PetscBool useLowerTriangularTransform);
-int transformSystemLeftRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * G_hat, Mat * D_hat, Mat * diag_2M, Vec * v);
+int transformSystemLeftRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * G_hat, Mat * D_hat, Mat * C_hat2, Mat * diag_2M, Vec * v);
 int solveRightTransformedSystemForXhat(   Mat Ahat, Mat Pmat, IS is_U, IS is_P, Vec b_input, Vec * X_hat,    PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double * residu);
 int solveLeftTransformedSystemForXoutput( Mat Ahat, Mat Pmat, IS is_U, IS is_P, Vec b_hat,   Vec * X_output, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double * residu, PetscBool useLowerTriangularTransform);
 int solveLeftRightTransformedSystemForXhat(   Mat Ahat, Mat Pmat, IS is_U, IS is_P, Vec b_hat, Vec * X_hat,    PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double * residu);
