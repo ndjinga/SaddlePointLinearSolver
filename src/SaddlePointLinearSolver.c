@@ -126,7 +126,24 @@ void buildRHSVector( Mat A_input, PetscInt n_u, PetscInt n_p, Vec * X_anal, Vec 
 }
 
 //##### Application of the transformation A -> A_hat by multiplication to the right by an upper triangular matrix
-//## Matrices Ghat, Chat, diag_2M and vector v must be deleted by caller
+//## Vector v must be deleted by caller
+/*                                 *M   G*                                                       */
+/*                        A     = *       *                                                      */
+/*                                 *D   C*                                                       */
+/*                                                                                               */
+/*                                 *Id  -diag(M)^{-1}G*                    *Id  diag(M)^{-1}G*   */
+/*                        U     = *                    *         U^{-1} = *                   *  */
+/*                                 *0               Id*                    *0              Id*   */
+/*                                                                                               */
+/*                                 *M     G_hat*             G_hat=G - M*diag(M)^{-1}*G          */
+/*                        A_hat = *             *                                                */
+/*                                 *D     C_hat*             C_hat=C - D*diag(M)^{-1}*G          */
+/*                                                                                               */
+/*                                 *2 diag(M)     0  *                                           */
+/*                        Pmat  = *                   *                                          */
+/*                                 *D          C_hat *                                           */
+/*                                                                                               */
+/*************************************************************************************************/
 int transformSystemRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * G_hat, Mat * diag_2M, Vec * v)
 {
     PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix by multiplication to the right...\n");
@@ -192,7 +209,36 @@ int transformSystemRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, M
 }
 
 //##### Application of the transformation A -> A_hat (and b -> b_hat) by multiplication to the left by a lower triangular matrix
-//## Matrices Ghat, Chat, diag_2M and vector v must be deleted by caller
+//## Vector v must be deleted by caller
+/*                                 *M   G*                                                       */
+/*                        A     = *       *                                                      */
+/*                                 *D   C*                                                       */
+/*                                                                                               */
+/*                                 *Id               0*                    *Id              0*   */
+/*                        L     = *                    *         L^{-1} = *                   *  */
+/*                                 *-D*diag(M)^{-1} Id*                    *D*diag(M)^{-1} Id*   */
+/*                                                                                               */
+/*                        WITHOUT SWAPP of velocity and pressure                                                                       */
+/*                                                                                               */
+/*                                 *M           G*             D_hat=D - D*diag(M)^{-1}*M          */
+/*                        A_hat = *               *                                                */
+/*                                 *D_hat   C_hat*             C_hat=C - D*diag(M)^{-1}*G          */
+/*                                                                                               */
+/*                                 *2 diag(M)     G  *                                           */
+/*                        Pmat  = *                   *                                          */
+/*                                 *0          C_hat *                                           */
+/*                                                                                               */
+/*                        WITH SWAPP of velocity and pressure                                                                       */
+/*                                                                                               */
+/*                                 *C_hat   D_hat*             D_hat=D - D*diag(M)^{-1}*M          */
+/*                        A_hat = *               *                                                */
+/*                                 *G           M*             C_hat=C - D*diag(M)^{-1}*G          */
+/*                                                                                               */
+/*                                 *C_hat     0  *                                           */
+/*                        Pmat  = *               *                                          */
+/*                                 *G   2 diag(M)*                                           */
+/*                                                                                               */
+/*************************************************************************************************/
 int transformSystemLeft( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * D_hat, Mat * diag_2M, Vec * v, PetscBool useLowerTriangularTransform)
 {
     PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix by multiplication to the left...\n");
@@ -580,4 +626,107 @@ int solveLeftTransformedSystemForXoutput( Mat Ahat, Mat Pmat, IS is_U, IS is_P, 
     PetscFree(kspArray);
 
     return PETSC_SUCCESS;
+}
+
+//##### Application of the transformation A -> A_hat by multiplication to the right by an upper triangular matrix and to the left by a lower triangular matrix
+//## Vector v must be deleted by caller
+/*                                 *M   G*                                                       */
+/*                        A     = *       *                                                      */
+/*                                 *D   C*                                                       */
+/*                                                                                               */
+/*                                 *Id  -diag(M)^{-1}G*                    *Id  diag(M)^{-1}G*   */
+/*                        U     = *                    *         U^{-1} = *                   *  */
+/*                                 *0               Id*                    *0              Id*   */
+/*                                                                                               */
+/*                                 *Id               0*                    *Id              0*   */
+/*                        L     = *                    *         L^{-1} = *                   *  */
+/*                                 *-D*diag(M)^{-1} Id*                    *D*diag(M)^{-1} Id*   */
+/*                                                                                               */
+/*                                 *M     G_hat*             G_hat=G - M*diag(M)^{-1}*G          */
+/*                        A_hat = *             *                                                */
+/*                                 *D     C_hat*             C_hat=C - D*diag(M)^{-1}*G          */
+/*                                                                                               */
+/*                                 *M     G_hat*             D_hat=D - D*diag(M)^{-1}*M          */
+/*                        A_hat = *             *                                                */
+/*                                 *Dhat  C_hat2*             C_hat2=Chat - D*diag(M)^{-1}*Ghat          */
+/*                                                                                               */
+/*                                 *2 diag(M)     0  *                                           */
+/*                        Pmat  = *                   *                                          */
+/*                                 *Dhat          C_hat *                                           */
+/*                                                                                               */
+/*************************************************************************************************/
+int transformSystemLeftRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * G_hat, Mat * D_hat, Mat * diag_2M, Vec * v)
+{
+    PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix by multiplication to the right...\n");
+
+    Vec v_redistributed;
+    Mat D_M_inv_G, D_DM_inv, *C_hat2, Mat_array[4];// D_M_inv = diag(M)^{-1}, D_DM_inv = D*diag(M)^{-1}
+    VecScatter scat;//tool to redistribute a vector on the processors
+    IS is_to, is_from;
+    PetscInt col_min, col_max;
+
+    //Extraction of the diagonal of M
+    MatCreateVecs(M,NULL,v);//v has the size of M
+    MatGetDiagonal(M,*v);
+
+    //Creation of matrix 2*diag(M). Why not use MatCreateDiagonal ???
+    PetscCall( MatDuplicate(M, MAT_DO_NOT_COPY_VALUES, diag_2M) );
+    MatEliminateZeros(*diag_2M, PETSC_TRUE);
+    MatDiagonalSet(*diag_2M, *v,  INSERT_VALUES);
+    MatScale(*diag_2M,2);//store 2*diagonal part of M
+    PetscCall( VecReciprocal(*v) );//Must first check that all the coefficients are non zero
+    
+    // Creation of D_M_inv_G = D_M_inv*G = diag(M)^{-1} * G
+    PetscCall( MatDuplicate(G,MAT_COPY_VALUES,&D_M_inv_G) );//D_M_inv_G contains G
+    PetscCall( MatDuplicate(D,MAT_COPY_VALUES,&D_DM_inv) );//D_DM_inv contains D
+    PetscCall( MatCreateVecs(D_M_inv_G,NULL,&v_redistributed) );//v_redistributed has the parallel distribution of D_M_inv_G
+    VecGetOwnershipRange(*v,&col_min,&col_max);
+    ISCreateStride(PETSC_COMM_WORLD, col_max-col_min, col_min, 1, &is_from);
+    VecGetOwnershipRange(v_redistributed,&col_min,&col_max);
+    ISCreateStride(PETSC_COMM_WORLD, col_max-col_min, col_min, 1, &is_to);
+    VecScatterCreate(*v,is_from,v_redistributed,is_to,&scat);
+    VecScatterBegin(scat, *v, v_redistributed,INSERT_VALUES,SCATTER_FORWARD);
+    VecScatterEnd(  scat, *v, v_redistributed,INSERT_VALUES,SCATTER_FORWARD);
+    MatDiagonalScale( D_M_inv_G, v_redistributed, NULL);//D_M_inv_G contains D_M_inv*G
+    MatDiagonalScale( D_DM_inv, NULL, v_redistributed);//D_DM_inv contains D_DM_inv
+
+    // Creation of C_hat
+    MatMatMult(D,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,C_hat);//C_hat contains D*D_M_inv*G
+    MatAYPX(*C_hat,-1.0,C,SUBSET_NONZERO_PATTERN);//C_hat contains C - D*D_M_inv*G
+
+    // Creation of G_hat
+    MatMatMult(M,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,G_hat);//G_hat contains M*D_M_inv*G
+    MatAYPX(*G_hat,-1.0,G,UNKNOWN_NONZERO_PATTERN);//G_hat contains G - M*D_M_inv*G
+
+    // Creation of D_hat
+    MatMatMult(D_DM_inv,M,MAT_INITIAL_MATRIX,PETSC_DEFAULT,D_hat);//D_hat contains D*DM_inv*M
+    MatAYPX(*D_hat,-1.0,D,UNKNOWN_NONZERO_PATTERN);//D_hat contains D - D*DM_inv*M
+
+    // Creation of C_hat2
+    MatMatMult(D_DM_inv, *G_hat,MAT_INITIAL_MATRIX,PETSC_DEFAULT,C_hat2);//C_hat2 contains D*D_M_inv*Ghat
+    MatAYPX(*C_hat2,-1.0,*C_hat,SUBSET_NONZERO_PATTERN);//C_hat2 contains Chat - D*D_M_inv*Ghat
+
+    //Creation of global matrices using MatCreateNest
+    Mat_array[3]=*C_hat2;//Top left block of A_hat
+    Mat_array[2]=*D_hat;//Top right block of A_hat
+    Mat_array[1]=*G_hat;//Bottom left block of A_hat
+    Mat_array[0]=M;//Bottom left block of A_hat
+
+    // Creation of A_hat = reordered A_input
+    MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,A_hat);
+
+    // Creation of Pmat
+    Mat_array[0]=*diag_2M;//Replace M by its diagonal to ease inversion
+    MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,Pmat);
+
+    PetscPrintf(PETSC_COMM_WORLD,"... matrix transformed \n");    
+
+    MatDestroy(diag_2M);
+    MatDestroy(C_hat);
+    MatDestroy(C_hat2);
+    MatDestroy(G_hat);
+    MatDestroy(D_hat);
+    MatDestroy(&D_M_inv_G);
+    VecScatterDestroy(&scat);
+    VecDestroy(&v_redistributed);
 }
