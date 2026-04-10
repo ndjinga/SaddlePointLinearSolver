@@ -186,12 +186,12 @@ int transformSystemRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, M
     MatAYPX(*G_hat,-1.0,G,UNKNOWN_NONZERO_PATTERN);//G_hat contains G - M*D_M_inv*G
 
     //Creation of global matrices using MatCreateNest
-    Mat_array[3]=*C_hat;//Top left block of A_hat
-    Mat_array[2]=D;//Top right block of A_hat
-    Mat_array[1]=*G_hat;//Bottom left block of A_hat
-    Mat_array[0]=M;//Bottom left block of A_hat
+    Mat_array[3]=*C_hat;//Top right block of A_hat
+    Mat_array[2]=D;//Bottom left block of A_hat
+    Mat_array[1]=*G_hat;//Top right block of A_hat
+    Mat_array[0]=M;//Top left block of A_hat
 
-    // Creation of A_hat = reordered A_input
+    // Creation of A_hat 
     MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,A_hat);
 
     // Creation of Pmat
@@ -285,18 +285,18 @@ int transformSystemLeft( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Ma
     {
         Mat_array[0]=*C_hat;//Top left block of A_hat
         Mat_array[1]=*D_hat;//Top right block of A_hat
-        Mat_array[3]=M;//Bottom left block of A_hat
+        Mat_array[3]=M;//Bottom right block of A_hat
         Mat_array[2]=G;//Bottom left block of A_hat
     }
     else
     {
-        Mat_array[3]=*C_hat;
-        Mat_array[2]=*D_hat;
-        Mat_array[0]=M;
-        Mat_array[1]=G;
+        Mat_array[3]=*C_hat;//Bottom right block of A_hat
+        Mat_array[2]=*D_hat;//Bottom left block of A_hat
+        Mat_array[0]=M;//Top left block of A_hat
+        Mat_array[1]=G;//Top right block of A_hat
     }
 
-    // Creation of A_hat = reordered A_input
+    // Creation of A_hat
     MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,A_hat);
 
     // Creation of Pmat
@@ -708,7 +708,7 @@ int transformSystemLeftRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pma
     Mat_array[1]=*G_hat;//Top right block of A_hat
     Mat_array[0]=M;//Top left block of A_hat
 
-    // Creation of A_hat = reordered A_input
+    // Creation of A_hat
     MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,A_hat);
 
     // Creation of Pmat
