@@ -642,17 +642,13 @@ int solveLeftTransformedSystemForXoutput( Mat Ahat, Mat Pmat, IS is_U, IS is_P, 
 /*                        L     = *                    *         L^{-1} = *                   *  */
 /*                                 *-D*diag(M)^{-1} Id*                    *D*diag(M)^{-1} Id*   */
 /*                                                                                               */
-/*                                 *M     G_hat*             G_hat=G - M*diag(M)^{-1}*G          */
-/*                        A_hat = *             *                                                */
-/*                                 *D     C_hat*             C_hat=C - D*diag(M)^{-1}*G          */
-/*                                                                                               */
-/*                                 *M     G_hat*             D_hat=D - D*diag(M)^{-1}*M          */
-/*                        A_hat = *             *                                                */
-/*                                 *Dhat  C_hat2*             C_hat2=Chat - D*diag(M)^{-1}*Ghat          */
+/*                                 *M     G_hat*             G_hat=G - M*diag(M)^{-1}*G   D_hat=D - D*diag(M)^{-1}*M         */
+/*                        A_hat = *             *                                                                            */
+/*                                 *Dhat  C_hat2*            C_hat=C - D*diag(M)^{-1}*G   C_hat2=Chat - D*diag(M)^{-1}*Ghat  */
 /*                                                                                               */
 /*                                 *2 diag(M)     0  *                                           */
 /*                        Pmat  = *                   *                                          */
-/*                                 *Dhat          C_hat *                                           */
+/*                                 *Dhat          C_hat2 *                                       */
 /*                                                                                               */
 /*************************************************************************************************/
 int transformSystemLeftRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * G_hat, Mat * D_hat, Mat * diag_2M, Vec * v)

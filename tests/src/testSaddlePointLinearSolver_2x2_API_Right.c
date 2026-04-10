@@ -2,7 +2,7 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 
 /*************************************************************************************************/
 /* Parallel implementation of a transform-then-solve preconditioner for the linear system A_{input} X_{output} = b_{input} */
-/*            Use an upper block triangular matrix U and perform the change of variables  X_hat = U^{-1}X, A_hat = (A_{input}U) */
+/*            Use an upper block triangular matrix U and perform the change of variables  X_hat = U^{-1}X, A_hat = A_{input}*U */
 /*            The transformed matrix Ahat is close to a lower triangular matrix Pmat used as preconditioner */
 /*                                                                                               */
 /* Description : Parallel file with PC_COMPOSITE of MULTIPLICATIVE type, not restricted to 2x2 blocs.*/
@@ -55,6 +55,7 @@ int main( int argc, char **args ){
 	Vec v;
 	double error,  rtol=1e-7, residu;
 
+    /* Minimum profiling for cpu time */
 	PetscLogStage  linear_system_stage;
 	PetscEventPerfInfo info_linear_system_stage;
 	PetscLogDefaultBegin();//This is somehow equivalent to the command line option -log_view but does not display info in the terminal
@@ -63,10 +64,10 @@ int main( int argc, char **args ){
 	PetscOptionsGetString(NULL,NULL,"-f0",file[0],PETSC_MAX_PATH_LEN,&flg);
 	PetscStrcpy(mat_type,MATAIJ);// Default value for PETSc Matrix type
 	PetscOptionsGetString(NULL,NULL,"-mat_type",mat_type,sizeof(mat_type),NULL);
-
 	PetscOptionsGetInt(NULL,NULL,"-nU",&n_u,NULL);
 	PetscOptionsGetInt(NULL,NULL,"-nP",&n_p,NULL);
 	n=n_u+n_p;
+
 	loadPETScMat( file[0], mat_type, &A_input, n_u, n_p);
 	
 	splitPETScMatrix2x2(   A_input, n_u, n_p, &M, &G, &D, &C, &is_U, &is_P);

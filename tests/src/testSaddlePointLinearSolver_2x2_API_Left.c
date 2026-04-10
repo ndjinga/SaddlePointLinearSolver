@@ -67,7 +67,9 @@ int main( int argc, char **args ){
 	Vec b_input, b_hat, X_output, X_anal;
 	Vec v;
 	double error,  rtol=1e-7, residu;
-
+    PetscBool useLowerTriangularTransform = PETSC_TRUE;
+    
+    /* Minimum profiling for cpu time */
 	PetscLogStage  linear_system_stage;
 	PetscEventPerfInfo info_linear_system_stage;
 	PetscLogDefaultBegin();//This is somehow equivalent to the command line option -log_view but does not display info in the terminal
@@ -76,7 +78,6 @@ int main( int argc, char **args ){
 	PetscOptionsGetString(NULL,NULL,"-f0",file[0],PETSC_MAX_PATH_LEN,&flg);
 	PetscStrcpy(mat_type,MATAIJ);// Default value for PETSc Matrix type
 	PetscOptionsGetString(NULL,NULL,"-mat_type",mat_type,sizeof(mat_type),NULL);
-
 	PetscOptionsGetInt(NULL,NULL,"-nU",&n_u,NULL);
 	PetscOptionsGetInt(NULL,NULL,"-nP",&n_p,NULL);
 	n=n_u+n_p;
@@ -87,7 +88,6 @@ int main( int argc, char **args ){
 
 	buildRHSVector( A_input, n_u, n_p, &X_anal, &b_input);
 
-    PetscBool useLowerTriangularTransform = PETSC_TRUE;
 	PetscLogStageRegister("Résolution du système linéaire", &linear_system_stage);//Instrumentation : début de la résolution du second membre
 	PetscLogStagePush( linear_system_stage);//Instrumentation
 	transformSystemLeft(M,G,D,C,&A_hat,&Pmat, &C_hat, &D_hat, &diag_2M, &v, useLowerTriangularTransform);
