@@ -146,7 +146,7 @@ void buildRHSVector( Mat A_input, PetscInt n_u, PetscInt n_p, Vec * X_anal, Vec 
 /*************************************************************************************************/
 int transformSystemRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * G_hat, Mat * diag_2M, Vec * v)
 {
-    PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix by multiplication to the right...\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix by multiplication to the right : Ahat = A_input*U ...\n");
 
     Vec v_redistributed;
     Mat D_M_inv_G, Mat_array[4];// D_M_inv = diag(M)^{-1}
@@ -241,7 +241,7 @@ int transformSystemRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, M
 /*************************************************************************************************/
 int transformSystemLeft( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * D_hat, Mat * diag_2M, Vec * v, PetscBool useLowerTriangularTransform)
 {
-    PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix by multiplication to the left...\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix A_input by multiplication to the left : Ahat = L*A_input ...\n");
 
     Vec v_redistributed;
     Mat D_DM_inv, Mat_array[4];// D_DM_inv = D*diag(M)^{-1}
@@ -653,7 +653,7 @@ int solveLeftTransformedSystemForXoutput( Mat Ahat, Mat Pmat, IS is_U, IS is_P, 
 /*************************************************************************************************/
 int transformSystemLeftRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * G_hat, Mat * D_hat, Mat * diag_2M, Vec * v)
 {
-    PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix by multiplication to the right...\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix A_input by multiplication to the left and the right : Ahat = L*A_input*U ...\n");
 
     Vec v_redistributed;
     Mat D_M_inv_G, D_DM_inv, *C_hat2, Mat_array[4];// D_M_inv = diag(M)^{-1}, D_DM_inv = D*diag(M)^{-1}
