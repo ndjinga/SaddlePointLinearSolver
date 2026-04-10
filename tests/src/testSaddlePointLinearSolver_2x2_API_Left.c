@@ -2,8 +2,9 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 
 /*************************************************************************************************/
 /* Parallel implementation of a transform-then-solve preconditioner for the linear system A_{input} X_{output} = b_{input} */
-/*            Use a lower block triangular matrix L and solve the system A_{hat} X_{output} = b_{hat} with b_hat = L*b_input, A_hat = L*A_{input} */
-/*            Pressure and velocity unknowns are swaped in the transform for convenience reasons */ 
+/*            Use a lower block triangular matrix L and solve the system A_{hat}*X_{output} = b_{hat} with b_hat = L*b_input, A_hat = L*A_{input} */
+/*            The transformed matrix Ahat is close to an upper triangular matrix Pmat used as preconditioner */                                                                                   */
+/*            Due to PETsc block Gauss-Seidel being optimised for lower triangular matrices, Pressure and velocity unknowns are swaped in the transform for better performance */ 
 /*                                                                                               */
 /* Description : Parallel file with PC_COMPOSITE of MULTIPLICATIVE type, not restricted to 2x2 blocs.*/
 /*               Use of API (class SaddlePointLinearSolve) for better code factorisation         */ 
@@ -25,8 +26,10 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 /*                                 *D   C*                                                       */
 /*                                                                                               */
 /*                                 *Id               0*                    *Id              0*   */
-/*                        T     = *                    *         T^{-1} = *                   *  */
+/*                        L     = *                    *         L^{-1} = *                   *  */
 /*                                 *-D*diag(M)^{-1} Id*                    *D*diag(M)^{-1} Id*   */
+/*                                                                                               */
+/*                        WITHOUT SWAPP of velocity and pressure                                                                       */
 /*                                                                                               */
 /*                                 *M           G*             D_hat=D - D*diag(M)^{-1}*M          */
 /*                        A_hat = *               *                                                */
@@ -35,6 +38,16 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 /*                                 *2 diag(M)     G  *                                           */
 /*                        Pmat  = *                   *                                          */
 /*                                 *0          C_hat *                                           */
+/*                                                                                               */
+/*                        WITH SWAPP of velocity and pressure                                                                       */
+/*                                                                                               */
+/*                                 *C_hat   D_hat*             D_hat=D - D*diag(M)^{-1}*M          */
+/*                        A_hat = *               *                                                */
+/*                                 *G           M*             C_hat=C - D*diag(M)^{-1}*G          */
+/*                                                                                               */
+/*                                 *C_hat     0  *                                           */
+/*                        Pmat  = *               *                                          */
+/*                                 *G   2 diag(M)*                                           */
 /*                                                                                               */
 /*************************************************************************************************/
 

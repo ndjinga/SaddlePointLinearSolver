@@ -235,7 +235,7 @@ int transformSystemLeft( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Ma
     MatAYPX(*D_hat,-1.0,D,UNKNOWN_NONZERO_PATTERN);//D_hat contains D - D*DM_inv*M
 
     //Creation of global matrices using MatCreateNest
-    if( useLowerTriangularTransform )
+    if( useLowerTriangularTransform )//Default, faster
     {
     Mat_array[0]=*C_hat;//Top left block of A_hat
     Mat_array[1]=*D_hat;//Top right block of A_hat
@@ -498,7 +498,7 @@ int solveLeftTransformedSystemForXoutput( Mat Ahat, Mat Pmat, IS is_U, IS is_P, 
     KSPGetPC(kspArray[0], &pc1);
     KSPGetPC(kspArray[1], &pc2);
 
-    if( useLowerTriangularTransform )
+    if( useLowerTriangularTransform )//Default, faster
     {
     PCSetType( pc1, PCGAMG);
     PCSetType( pc2, PCJACOBI);
