@@ -127,7 +127,7 @@ void buildRHSVector( Mat A_input, PetscInt n_u, PetscInt n_p, Vec * X_anal, Vec 
 
 //##### Application of the transformation A -> A_hat by multiplication to the right by an upper triangular matrix
 //## Matrices Ghat, Chat, diag_2M and vector v must be deleted by caller
-void transformSystemRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * G_hat, Mat * diag_2M, Vec * v)
+int transformSystemRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * G_hat, Mat * diag_2M, Vec * v)
 {
     PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix by multiplication to the right...\n");
 
@@ -142,15 +142,15 @@ void transformSystemRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, 
     MatGetDiagonal(M,*v);
 
     //Creation of matrix 2*diag(M). Why not use MatCreateDiagonal ???
-    MatDuplicate(M, MAT_DO_NOT_COPY_VALUES, diag_2M);
+    PetscCall( MatDuplicate(M, MAT_DO_NOT_COPY_VALUES, diag_2M) );
     MatEliminateZeros(*diag_2M, PETSC_TRUE);
     MatDiagonalSet(*diag_2M, *v,  INSERT_VALUES);
     MatScale(*diag_2M,2);//store 2*diagonal part of M
-    VecReciprocal(*v);//Must first check that all the coefficients are non zero
+    PetscCall( VecReciprocal(*v) );//Must first check that all the coefficients are non zero
     
     // Creation of D_M_inv_G = D_M_inv*G = diag(M)^{-1} * G
-    MatDuplicate(G,MAT_COPY_VALUES,&D_M_inv_G);//D_M_inv_G contains G
-    MatCreateVecs(D_M_inv_G,NULL,&v_redistributed);//v_redistributed has the parallel distribution of D_M_inv_G
+    PetscCall( MatDuplicate(G,MAT_COPY_VALUES,&D_M_inv_G) );//D_M_inv_G contains G
+    PetscCall( MatCreateVecs(D_M_inv_G,NULL,&v_redistributed) );//v_redistributed has the parallel distribution of D_M_inv_G
     VecGetOwnershipRange(*v,&col_min,&col_max);
     ISCreateStride(PETSC_COMM_WORLD, col_max-col_min, col_min, 1, &is_from);
     VecGetOwnershipRange(v_redistributed,&col_min,&col_max);
@@ -212,11 +212,11 @@ int transformSystemLeft( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Ma
     MatEliminateZeros(*diag_2M, PETSC_TRUE);
     MatDiagonalSet(*diag_2M, *v,  INSERT_VALUES);
     MatScale(*diag_2M,2);//store 2*diagonal part of M
-    VecReciprocal(*v);//Must first check that all the coefficients are non zero
+    PetscCall( VecReciprocal(*v) );//Must first check that all the coefficients are non zero
     
     // Creation of D_DM_inv = D*DM_inv = D*diag(M)^{-1}
     PetscCall( MatDuplicate(D,MAT_COPY_VALUES,&D_DM_inv) );//D_DM_inv contains D
-    MatCreateVecs(D_DM_inv,&v_redistributed,NULL);//v_redistributed has the parallel distribution of D_DM_inv
+    PetscCall( MatCreateVecs(D_DM_inv,&v_redistributed,NULL) );//v_redistributed has the parallel distribution of D_DM_inv
     VecGetOwnershipRange(*v,&col_min,&col_max);
     ISCreateStride(PETSC_COMM_WORLD, col_max-col_min, col_min, 1, &is_from);
     VecGetOwnershipRange(v_redistributed,&col_min,&col_max);
@@ -237,17 +237,17 @@ int transformSystemLeft( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Ma
     //Creation of global matrices using MatCreateNest
     if( useLowerTriangularTransform )//Default, faster
     {
-    Mat_array[0]=*C_hat;//Top left block of A_hat
-    Mat_array[1]=*D_hat;//Top right block of A_hat
-    Mat_array[3]=M;//Bottom left block of A_hat
-    Mat_array[2]=G;//Bottom left block of A_hat
+        Mat_array[0]=*C_hat;//Top left block of A_hat
+        Mat_array[1]=*D_hat;//Top right block of A_hat
+        Mat_array[3]=M;//Bottom left block of A_hat
+        Mat_array[2]=G;//Bottom left block of A_hat
     }
     else
     {
-    Mat_array[3]=*C_hat;
-    Mat_array[2]=*D_hat;
-    Mat_array[0]=M;
-    Mat_array[1]=G;
+        Mat_array[3]=*C_hat;
+        Mat_array[2]=*D_hat;
+        Mat_array[0]=M;
+        Mat_array[1]=G;
     }
 
     // Creation of A_hat = reordered A_input
@@ -337,12 +337,12 @@ int getbhatFrombinput(Mat D, Vec v, Vec b_input, Vec * b_hat, IS is_U, IS is_P, 
     Vec b_hat_p_tmp;//Temporary storage for pressure components
     Vec b_array[2];
     
-       PetscCall( VecDuplicate(b_input,b_hat) );// b_hat will store the right hand side of the transformed system
+    PetscCall( VecDuplicate(b_input,b_hat) );// b_hat will store the right hand side of the transformed system
     PetscCall( VecGetSubVector( b_input, is_P, &b_hat_p) );
     PetscCall( VecGetSubVector( b_input, is_U, &b_hat_u) );
 
-       PetscCall( VecDuplicate(b_hat_u,&b_hat_u_tmp) );
-       PetscCall( VecDuplicate(b_hat_p,&b_hat_p_tmp) );
+    PetscCall( VecDuplicate(b_hat_u,&b_hat_u_tmp) );
+    PetscCall( VecDuplicate(b_hat_p,&b_hat_p_tmp) );
     PetscCall( VecPointwiseMult(b_hat_u_tmp,b_hat_u,v) );
 
     PetscCall( MatMult( D, b_hat_u_tmp, b_hat_p_tmp) );

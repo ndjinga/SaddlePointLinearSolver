@@ -3,7 +3,7 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 /*************************************************************************************************/
 /* Parallel implementation of a transform-then-solve preconditioner for the linear system A_{input} X_{output} = b_{input} */
 /*            Use an upper block triangular matrix U and perform the change of variables  X_hat = U^{-1}X, A_hat = (A_{input}U) */
-/*            The transformed matrix Ahat is close to a lower triangular matrix Pmat used as preconditioner */                                                                                   */
+/*            The transformed matrix Ahat is close to a lower triangular matrix Pmat used as preconditioner */
 /*                                                                                               */
 /* Description : Parallel file with PC_COMPOSITE of MULTIPLICATIVE type, not restricted to 2x2 blocs.*/
 /*               Use of API (class SaddlePointLinearSolve) for better code factorisation         */ 
