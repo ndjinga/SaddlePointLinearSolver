@@ -108,7 +108,7 @@ int main( int argc, char **args ){
     solveLeftTransformedSystemForXoutput( A_hat, Pmat, is_U, is_P, b_hat, &X_output, rtol,PETSC_DEFAULT,PETSC_DEFAULT, PETSC_DEFAULT, &residu, useLowerTriangularTransform);
 	PetscLogStagePop();//Instrumentation : fin de la résolution du second membre
 	PetscLogStageGetPerfInfo( linear_system_stage, &info_linear_system_stage);
-	PetscPrintf(PETSC_COMM_WORLD, "\nTime taken to solve the linear system : %e \n",info_linear_system_stage.time);
+	PetscPrintf(PETSC_COMM_WORLD, "\nTime taken to solve the linear system : %e \n\n",info_linear_system_stage.time);
 
 	Vec X_p;//Pressure components of the main unknown
 	Vec X_u;//Velocity components of the transformed unknown

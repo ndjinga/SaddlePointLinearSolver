@@ -13,3 +13,6 @@ int solveLeftRightTransformedSystemForXhat(   Mat Ahat, Mat Pmat, IS is_U, IS is
 void getSolutionFromXhat(Mat G, Vec v, Vec X_hat, Vec * X_output, Vec * X_u, Vec * X_p, IS is_U, IS is_P);
 int getbhatFrombinput(Mat D, Vec v, Vec b_input, Vec * b_hat, IS is_U, IS is_P, PetscBool useLowerTriangularTransform);
 double computeErrorAndCheck( Vec X_anal, Vec X_output, IS is_U, IS is_P, Vec X_u, Vec X_p);
+
+/* Fonctions utilitaires*/
+int displayFieldSplitIterationNumbers(KSP *ksp, double *residu);
