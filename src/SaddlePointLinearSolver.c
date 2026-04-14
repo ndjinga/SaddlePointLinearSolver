@@ -1,5 +1,15 @@
 #include "SaddlePointLinearSolver.h"
 
+PetscErrorCode multViaPC(Mat Ashell, Vec x, Vec y)
+{
+    PC  pc;
+
+    PetscFunctionBegin;
+    PetscCall(MatShellGetContext(Ashell, &pc));
+    PetscCall(PCApply( pc, x, y));
+    PetscFunctionReturn(PETSC_SUCCESS);
+}
+
 //##### Load the matrix A from the file given in the argument
 //### Creation of Mat A. Mat A must be deleted by caller
 void loadPETScMat(char* file, char* mat_type, Mat * A, PetscInt n_u, PetscInt n_p)// n_u (resp. n_p) is the number of velocity (resp. pressure) lines in the matrix, used only to optimise the parallel distribution of the matrix.
@@ -146,7 +156,7 @@ void buildRHSVector( Mat A_input, PetscInt n_u, PetscInt n_p, Vec * X_anal, Vec 
 /*************************************************************************************************/
 int transformSystemRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * G_hat, Mat * diag_2M, Vec * v)
 {
-    PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix by multiplication to the right : Ahat = A_input*U ...\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix by multiplication to the right by an upper triangular matrix U : Ahat = A_input*U ...\n");
 
     Vec v_redistributed;
     Mat D_M_inv_G, Mat_array[4];// D_M_inv = diag(M)^{-1}
@@ -241,7 +251,7 @@ int transformSystemRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, M
 /*************************************************************************************************/
 int transformSystemLeft( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * D_hat, Mat * diag_2M, Vec * v, PetscBool useLowerTriangularTransform)
 {
-    PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix A_input by multiplication to the left : Ahat = L*A_input ...\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix A_input by multiplication to the left by a lower triangular matrix L : Ahat = L*A_input ...\n");
 
     Vec v_redistributed;
     Mat D_DM_inv, Mat_array[4];// D_DM_inv = D*diag(M)^{-1}
@@ -537,7 +547,7 @@ int solveLeftTransformedSystemForXoutput( Mat Ahat, Mat Pmat, IS is_U, IS is_P, 
 /*************************************************************************************************/
 int transformSystemLeftRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * G_hat, Mat * D_hat, Mat * C_hat2, Mat * diag_2M, Vec * v)
 {
-    PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix A_input by multiplication to the left and the right : Ahat = L*A_input*U ...\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix A_input by multiplication to the left and the right by upper and lower triangular matrices U and L : Ahat = L*A_input*U ...\n");
 
     Vec v_redistributed;
     Mat D_M_inv_G, D_DM_inv, Mat_array[4];// D_M_inv = diag(M)^{-1}, D_DM_inv = D*diag(M)^{-1}
@@ -719,5 +729,83 @@ int displayFieldSplitIterationNumbers(KSP *ksp, double *residu)
                 PetscPrintf(PETSC_COMM_WORLD, "PETSc convergence reason %d \n", reason);
             else
                 PetscPrintf(PETSC_COMM_WORLD, "PETSc divergence reason %d \n" , reason);
-        }    
+        }
+}
+
+int transformSystemRightWithPC( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * G_hat, Mat * ILU_M)
+{
+    PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix by multiplication to the right by an upper triangular matrix U : Ahat = A_input*U ...\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Use of approximate inverse for M based on ILU factorisation ...\n");
+
+    PetscMPIInt    size;        /* size of communicator */
+    PetscMPIInt    rank;        /* processor rank */
+    MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
+    MPI_Comm_size(PETSC_COMM_WORLD,&size);
+    PetscInt nrows_loc, ncols_loc;//Local number of rows and columns of A_input
+    PetscInt nrows, ncolumns;//Total number of rows and columns of A_input
+    PetscInt irow_min, irow_max;//min and max indices of rows stored locally on this process
+    PC pcilu;
+    
+    Mat ILU_M_redistributed;
+    Mat D_M_inv_G, Mat_array[4];// D_M_inv = diag(M)^{-1}
+    VecScatter scat;//tool to redistribute a vector on the processors
+    IS is_to, is_from;
+
+    MatGetLocalSize( M, &nrows_loc, &ncols_loc);
+    MatGetSize( M, &nrows, &ncolumns);
+    MatGetOwnershipRange( M, &irow_min, &irow_max);
+
+    //Creation of matrix approximating the inverse of M via ilu factorisation
+    PCCreate( PETSC_COMM_WORLD, &pcilu);
+    PCSetType( pcilu, PCBJACOBI);
+    PCSetOperators( pcilu, M, M);
+    PCSetFromOptions( pcilu);
+    PCSetUp( pcilu);
+    MatCreateShell( PETSC_COMM_WORLD, nrows_loc, ncols_loc, nrows, ncolumns, &pcilu, ILU_M);
+    PetscCall(MatShellSetOperation( *ILU_M, MATOP_MULT, (void (*)(void))multViaPC));
+    
+    // Creation of D_M_inv_G = D_M_inv*G = diag(M)^{-1} * G
+    PetscCall( MatDuplicate(G,MAT_COPY_VALUES,&D_M_inv_G) );//D_M_inv_G contains G
+    MatMatMult( *ILU_M,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&D_M_inv_G);//D_M_inv_G contains D_M_inv*G
+    /*
+    PetscCall( MatCreateVecs(D_M_inv_G,NULL,&v_redistributed) );//v_redistributed has the parallel distribution of D_M_inv_G
+    VecGetOwnershipRange(*v,&col_min,&col_max);
+    ISCreateStride(PETSC_COMM_WORLD, col_max-col_min, col_min, 1, &is_from);
+    VecGetOwnershipRange(v_redistributed,&col_min,&col_max);
+    ISCreateStride(PETSC_COMM_WORLD, col_max-col_min, col_min, 1, &is_to);
+    VecScatterCreate(*v,is_from,v_redistributed,is_to,&scat);
+    VecScatterBegin(scat, *v, v_redistributed,INSERT_VALUES,SCATTER_FORWARD);
+    VecScatterEnd(  scat, *v, v_redistributed,INSERT_VALUES,SCATTER_FORWARD);
+    MatDiagonalScale( D_M_inv_G, v_redistributed, NULL);//D_M_inv_G contains D_M_inv*G
+    */
+
+    // Creation of C_hat
+    MatMatMult(D,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,C_hat);//C_hat contains D*D_M_inv*G
+    MatAYPX(*C_hat,-1.0,C,SUBSET_NONZERO_PATTERN);//C_hat contains C - D*D_M_inv*G
+
+    // Creation of G_hat
+    MatMatMult(M,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,G_hat);//G_hat contains M*D_M_inv*G
+    MatAYPX(*G_hat,-1.0,G,UNKNOWN_NONZERO_PATTERN);//G_hat contains G - M*D_M_inv*G
+
+    //Creation of global matrices using MatCreateNest
+    Mat_array[3]=*C_hat;//Top right block of A_hat
+    Mat_array[2]=D;//Bottom left block of A_hat
+    Mat_array[1]=*G_hat;//Top right block of A_hat
+    Mat_array[0]=M;//Top left block of A_hat
+
+    // Creation of A_hat 
+    MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,A_hat);
+
+    // Creation of Pmat
+    Mat_array[0]=*ILU_M;//Replace M by its diagonal to ease inversion
+    MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,Pmat);
+
+    PetscPrintf(PETSC_COMM_WORLD,"... matrix transformed \n");    
+
+    //MatDestroy(ILU_M);
+    MatDestroy(C_hat);
+    MatDestroy(G_hat);
+    MatDestroy(&D_M_inv_G);
+    //VecScatterDestroy(&scat);
+    //VecDestroy(&v_redistributed);
 }
