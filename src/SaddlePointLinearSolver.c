@@ -732,7 +732,7 @@ int displayFieldSplitIterationNumbers(KSP *ksp, double *residu)
         }
 }
 
-int transformSystemRightWithPC( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * G_hat, Mat * ILU_M)
+int transformSystemRightWithILU( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * G_hat, Mat * ILU_M)
 {
     PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix by multiplication to the right by an upper triangular matrix U : Ahat = A_input*U ...\n");
     PetscPrintf(PETSC_COMM_WORLD,"Use of approximate inverse for M based on ILU factorisation ...\n");
