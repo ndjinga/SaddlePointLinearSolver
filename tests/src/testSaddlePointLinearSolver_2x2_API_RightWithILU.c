@@ -78,12 +78,10 @@ int main( int argc, char **args ){
 
 	PetscLogStageRegister("Résolution du système linéaire", &linear_system_stage);//Instrumentation : début de la résolution du second membre
 	PetscLogStagePush( linear_system_stage);//Instrumentation
-	//transformSystemRightWithILU(M,G,D,C,&A_hat,&Pmat, &C_hat, &G_hat, &ILU_M);
-return 0;
 //##### Calling KSP solver and monitor convergence
-/*
-    solveRightTransformedSystemForXhat( A_hat, Pmat, is_U, is_P, b_input, &X_hat, rtol,PETSC_DEFAULT,PETSC_DEFAULT, PETSC_DEFAULT, &residu);
+    solveRightILUTransformedSystemForXhat( A_input, M, G, is_U, is_P, b_input, &X_hat, rtol,PETSC_DEFAULT,PETSC_DEFAULT, PETSC_DEFAULT, &residu);
 
+/*
 	Vec X_output;
 	Vec X_p;//Pressure components of the main unknown
 	Vec X_u;//Velocity components of the transformed unknown
@@ -99,7 +97,7 @@ return 0;
 */	
 //##### Cleaning of the memory
 	MatDestroy(&A_input);
-	MatDestroy(&A_hat);
+	//MatDestroy(&A_hat);
 	MatDestroy(&Pmat);
 	MatDestroy(&M);
 	MatDestroy(&D);	

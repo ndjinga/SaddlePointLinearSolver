@@ -484,8 +484,8 @@ int solveRightTransformedSystemForXhat( Mat A_hat, Mat Pmat, IS is_U, IS is_P, V
 {
     KSP ksp, *kspArray;
     PC pc, pc1, pc2;
-    KSPType ksp_type0, ksp_type1,  ksp_type = KSPFBCGS;//BCGS seems very efficient
-    PCType pc_type=PCFIELDSPLIT, pc_type0, pc_type1;
+    KSPType ksp_type1,  ksp_type = KSPFBCGS;//BCGS seems very efficient
+    PCType pc_type=PCFIELDSPLIT;
     int nblocks=2, iter, iter1, iter2;//iter = main iteration number, iter1 and iter2 are sub iteration numbers
     PCCompositeType pc_composite_type = PC_COMPOSITE_MULTIPLICATIVE;// MULTIPLICATIVE = block triangular preconditioner, ADDITIVE  = block diagonal preconditioner
 
@@ -517,7 +517,7 @@ int solveRightTransformedSystemForXhat( Mat A_hat, Mat Pmat, IS is_U, IS is_P, V
     PetscCall( KSPSolve(ksp,b_input, *X_hat) );
 
     //Extract and display informations about the convergence
-    displayFieldSplitIterationNumbers( &ksp, residu);
+    displayPCFieldSplitIterationNumbers( &ksp, residu);
     
     KSPDestroy(&ksp);
     PetscFree(kspArray);
@@ -535,14 +535,11 @@ int solveRightILUTransformedSystemForXhat( Mat A_input, Mat M, Mat G, IS is_U, I
 //#### The PCFIELDSPLIT preconditioner (based on GAMG and ILU) ###//
     KSP *kspArray;
     PC pcfieldsplit, pcfieldsplit1, pcfieldsplit2;
-    KSPType ksp_type0, ksp_type1;
-    PCType pc_type=PCFIELDSPLIT, pc_type0, pc_type1;
     int nblocks=2, iter, iter1, iter2;//iter = main iteration number, iter1 and iter2 are sub iteration numbers
-    PCCompositeType pc_composite_type = PC_COMPOSITE_MULTIPLICATIVE;// MULTIPLICATIVE = block triangular preconditioner, ADDITIVE  = block diagonal preconditioner
 
-    PCSetType(pcfieldsplit,pc_type);
-
-    PCFieldSplitSetType(pcfieldsplit, pc_composite_type);
+    PCCreate(PETSC_COMM_WORLD,&pcfieldsplit);
+    PCSetType(pcfieldsplit,PCFIELDSPLIT);
+    PCFieldSplitSetType(pcfieldsplit, PC_COMPOSITE_MULTIPLICATIVE);// MULTIPLICATIVE = block triangular preconditioner, ADDITIVE  = block diagonal preconditioner
     PCFieldSplitSetIS(pcfieldsplit, "0",is_U);//The order here matters a lot between this line and the next
     PCFieldSplitSetIS(pcfieldsplit, "1",is_P);//The order here matters a lot between this line and the previous
     PCFieldSplitGetSubKSP( pcfieldsplit, &nblocks, &kspArray);
@@ -568,18 +565,22 @@ int solveRightILUTransformedSystemForXhat( Mat A_input, Mat M, Mat G, IS is_U, I
     PCSetType(pctransform,PCSHELL);
     PCShellSetContext(pctransform,&ctx);
     PCShellSetApply(pctransform,applyRight);
-    PCShellSetSetUp(pc,setupRight);                   
-    PCShellSetDestroy(pc,destroyRight);               
+    PCShellSetSetUp(pctransform,setupRight);                   
+    PCShellSetDestroy(pctransform,destroyRight);               
 
 //#### Setting the KSP solver ###//
-    PetscPrintf(PETSC_COMM_WORLD,"Setting the solver ...\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Setting the main solver ...\n");
     KSPCreate(PETSC_COMM_WORLD,&ksp);
     KSPSetType(ksp, ksp_type);
     PetscCall( KSPSetOperators(ksp,A_input,A_input) );
     KSPSetTolerances(ksp,rtol, abstol, dtol, numberMaxOfIter);
-    KSPSetPC(ksp,pc);
+    KSPGetPC(ksp,&pc);
     KSPSetPCSide( ksp, PC_RIGHT);
-    PetscPrintf(PETSC_COMM_WORLD,"Setting the preconditioner %s...\n", pc_type);
+    PetscPrintf(PETSC_COMM_WORLD,"Setting the main preconditioner ...\n");
+    PCSetType(pc,PCCOMPOSITE);
+    PCCompositeSetType( pc, PC_COMPOSITE_MULTIPLICATIVE);
+    PCCompositeAddPC( pc, pctransform);
+    PCCompositeAddPC( pc, pcfieldsplit);
     PetscCall( KSPSetFromOptions(ksp) );
     PetscCall( KSPSetUp(ksp) );
     PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system A_hat*X_hat = b_input...\n");
@@ -587,7 +588,7 @@ int solveRightILUTransformedSystemForXhat( Mat A_input, Mat M, Mat G, IS is_U, I
     PetscCall( KSPSolve(ksp,b_input, *X_hat) );
 
     //Extract and display informations about the convergence
-    displayFieldSplitIterationNumbers( &ksp, residu);
+    displayPCCompositeIterationNumbers( &ksp, residu);
     
     KSPDestroy(&ksp);
     PetscFree(kspArray);
@@ -600,8 +601,8 @@ int solveLeftTransformedSystemForXoutput( Mat Ahat, Mat Pmat, IS is_U, IS is_P, 
 {
     KSP ksp, *kspArray;
     PC pc, pc1, pc2;
-    KSPType ksp_type0, ksp_type1,  ksp_type = KSPFBCGS;//FBCGS seems much more efficient than FGMRES
-    PCType pc_type=PCFIELDSPLIT, pc_type0, pc_type1;
+    KSPType ksp_type = KSPFBCGS;//FBCGS seems much more efficient than FGMRES
+    PCType pc_type=PCFIELDSPLIT;
     int nblocks=2, iter, iter1, iter2;//iter = main iteration number, iter1 and iter2 are sub iteration numbers
     PCCompositeType pc_composite_type = PC_COMPOSITE_MULTIPLICATIVE;// MULTIPLICATIVE = block lower triangular preconditioner, ADDITIVE  = block diagonal preconditioner
 
@@ -641,7 +642,7 @@ int solveLeftTransformedSystemForXoutput( Mat Ahat, Mat Pmat, IS is_U, IS is_P, 
     PetscCall( KSPSolve(ksp,b_hat, *X_output) );
 
     //Extract and display informations about the convergence
-    displayFieldSplitIterationNumbers( &ksp, residu);
+    displayPCFieldSplitIterationNumbers( &ksp, residu);
     
     KSPDestroy(&ksp);
     PetscFree(kspArray);
@@ -754,8 +755,8 @@ int solveLeftRightTransformedSystemForXhat( Mat A_hat, Mat Pmat, IS is_U, IS is_
 {
     KSP ksp, *kspArray;
     PC pc, pc1, pc2;
-    KSPType ksp_type0, ksp_type1,  ksp_type = KSPFBCGS;//BCGS seems very efficient
-    PCType pc_type=PCFIELDSPLIT, pc_type0, pc_type1;
+    KSPType ksp_type = KSPFBCGS;//BCGS seems very efficient
+    PCType pc_type=PCFIELDSPLIT;
     int nblocks=2, iter, iter1, iter2;//iter = main iteration number, iter1 and iter2 are sub iteration numbers
     PCCompositeType pc_composite_type = PC_COMPOSITE_MULTIPLICATIVE;// MULTIPLICATIVE = block triangular preconditioner, ADDITIVE  = block diagonal preconditioner
 
@@ -786,7 +787,7 @@ int solveLeftRightTransformedSystemForXhat( Mat A_hat, Mat Pmat, IS is_U, IS is_
 
     PetscCall( KSPSolve(ksp,b_hat, *X_hat) );
 
-    displayFieldSplitIterationNumbers( &ksp, residu);
+    displayPCFieldSplitIterationNumbers( &ksp, residu);
 
     KSPDestroy(&ksp);
     PetscFree(kspArray);
@@ -794,13 +795,13 @@ int solveLeftRightTransformedSystemForXhat( Mat A_hat, Mat Pmat, IS is_U, IS is_
     return PETSC_SUCCESS;
 }
 
-int displayFieldSplitIterationNumbers(KSP *ksp, double *residu)
+int displayPCFieldSplitIterationNumbers(KSP *ksp, double *residu)
 {
     KSP *kspArray;
     PC pc, pc1, pc2;
     KSPType ksp_type0, ksp_type1,  ksp_type;
     PCType pc_type, pc_type0, pc_type1;
-    int nblocks=2, iter, iter1, iter2;//iter = main iteration number, iter1 and iter2 are sub iteration numbers
+    int nblocks, iter, iter1, iter2;//iter = main iteration number, iter1 and iter2 are sub iteration numbers
     KSPConvergedReason reason;
     PetscReal rtol, abstol, dtol;
     PetscInt numberMaxOfIter;
@@ -809,8 +810,10 @@ int displayFieldSplitIterationNumbers(KSP *ksp, double *residu)
     KSPGetResidualNorm( *ksp, residu);
     KSPGetTolerances( *ksp, &rtol, &abstol, &dtol, &numberMaxOfIter);
     KSPGetPC(*ksp,&pc);
-    PetscCall( PCFieldSplitGetSubKSP( pc, &nblocks, &kspArray) );
     KSPGetType( *ksp, &ksp_type);
+    PetscCheck( ksp_type == PCFIELDSPLIT, MPI_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Display function displayPCFieldSplitIterationNumbers works for PCFIELDSPLIT preconditioners, pc_type = %s", pc_type);
+    PetscCall( PCFieldSplitGetSubKSP( pc, &nblocks, &kspArray) );
+    PetscCheck( nblocks == 2, MPI_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Display function displayPCFieldSplitIterationNumbers works for 2 blocks in PCFIELDSPLIT preconditioners, nblocks = %d", nblocks);
     KSPGetType( kspArray[0], &ksp_type0);
     KSPGetType( kspArray[1], &ksp_type1);
     KSPGetPC(kspArray[0],&pc1);
@@ -828,6 +831,69 @@ int displayFieldSplitIterationNumbers(KSP *ksp, double *residu)
         PetscPrintf(PETSC_COMM_WORLD, "Linear solver name: %s, preconditioner %s, %d iterations \n", ksp_type, pc_type, iter);
         PetscPrintf(PETSC_COMM_WORLD, "    sub solver 1 name : %s, preconditioner %s, %d iterations \n", ksp_type0, pc_type0, iter1);
         PetscPrintf(PETSC_COMM_WORLD, "    sub solver 2 name : %s, preconditioner %s, %d iterations \n", ksp_type1, pc_type1, iter2);
+    }
+    else
+        PetscPrintf(PETSC_COMM_WORLD, "!!!!!!!!!!!!!!!!!! Linear system diverged  after %d iterations !!!!!!!!!!!!!!\n", iter);
+        
+    switch(reason){
+        case 2:
+            PetscPrintf(PETSC_COMM_WORLD, "Residual 2-norm < rtol*||RHS||_2 with rtol = %e, final residual = %e\n\n", rtol, *residu);
+            break;
+        case 3:
+            PetscPrintf(PETSC_COMM_WORLD, "Residual 2-norm < atol with atol = %e, final residual = %e\n\n", abstol, *residu);
+            break;
+        case -4:
+            PetscPrintf(PETSC_COMM_WORLD, "!!!!!!! Residual 2-norm > dtol*||RHS||_2 with dtol = %e, final residual = %e !!!!!!! \n", dtol, *residu);
+            break;
+        case -3:
+            PetscPrintf(PETSC_COMM_WORLD, "!!!!!!! Maximum number of iterations %d reached with dtol = %e, final residual =  %e !!!!!!! \n", numberMaxOfIter, dtol, *residu);
+            break;
+        case -11:
+            PetscPrintf(PETSC_COMM_WORLD, "!!!!!!! Construction of preconditioner failed !!!!!! \n");
+            break;
+        case -5:
+            PetscPrintf(PETSC_COMM_WORLD, "!!!!!!! Generic breakdown of the linear solver (Could be due to a singular matrix or preconditioner)!!!!!! \n");
+            break;
+        default:
+            if (reason>0)
+                PetscPrintf(PETSC_COMM_WORLD, "PETSc convergence reason %d \n", reason);
+            else
+                PetscPrintf(PETSC_COMM_WORLD, "PETSc divergence reason %d \n" , reason);
+        }
+}
+
+int displayPCCompositeIterationNumbers(KSP *ksp, double *residu)
+{
+    KSP *kspArray;
+    PC pc, pc1, pc2;
+    KSPType ksp_type0, ksp_type1,  ksp_type;
+    PCType pc_type, pc_type0, pc_type1;
+    int nprecs, iter, iter1, iter2;//iter = main iteration number, iter1 and iter2 are sub iteration numbers
+    KSPConvergedReason reason;
+    PetscReal rtol, abstol, dtol;
+    PetscInt numberMaxOfIter;
+    
+    KSPGetConvergedReason(*ksp,&reason);
+    KSPGetResidualNorm( *ksp, residu);
+    KSPGetTolerances( *ksp, &rtol, &abstol, &dtol, &numberMaxOfIter);
+    KSPGetPC(*ksp,&pc);
+    PCGetType( pc, &pc_type);
+    PetscCheck( pc_type == PCCOMPOSITE, MPI_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Display function  displayPCCompositeIterationNumbers works for PCCOMPOSITE preconditioners, pc_type = %s", pc_type);
+    PCCompositeGetNumberPC( pc, &nprecs);
+    PetscCheck( nprecs == 2, MPI_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Display function displayPCCompositeIterationNumbers works for 2 sub preconditioners, nprecs = %d", nprecs);
+    PCCompositeGetPC( pc, 0, &pc1);
+    PCCompositeGetPC( pc, 1, &pc2);
+    KSPGetType( *ksp, &ksp_type);
+    PCGetType( pc1, &pc_type0);
+    PCGetType( pc2, &pc_type1);
+    KSPGetIterationNumber(*ksp,&iter);
+
+    if (reason>0)
+    {
+        PetscPrintf(PETSC_COMM_WORLD, "\n############ : monitoring the convergence of the linear solver\n");
+        PetscPrintf(PETSC_COMM_WORLD, "Linear solver name: %s, preconditioner %s, %d iterations \n", ksp_type, pc_type, iter);
+        PetscPrintf(PETSC_COMM_WORLD, "    sub preconditioner 0 name : %s \n", pc_type0);
+        PetscPrintf(PETSC_COMM_WORLD, "    sub preconditioner 1 name : %s \n", pc_type1);
     }
     else
         PetscPrintf(PETSC_COMM_WORLD, "!!!!!!!!!!!!!!!!!! Linear system diverged  after %d iterations !!!!!!!!!!!!!!\n", iter);

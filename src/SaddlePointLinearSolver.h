@@ -18,7 +18,8 @@ double computeErrorAndCheck( Vec X_anal, Vec X_output, IS is_U, IS is_P, Vec X_u
 int solveRightILUTransformedSystemForXhat( Mat A_input, Mat M, Mat G, IS is_U, IS is_P, Vec b_input, Vec * X_hat, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double *residu);
 
 /* Fonctions utilitaires*/
-int displayFieldSplitIterationNumbers(KSP *ksp, double *residu);
+int displayPCFieldSplitIterationNumbers(KSP *ksp, double *residu);
+int displayPCCompositeIterationNumbers(KSP *ksp, double *residu);
 PetscErrorCode setupRight(PC pcshell);
 PetscErrorCode destroyRight(PC pcshell);
 PetscErrorCode applyRight(PC pcshell, Vec x, Vec y);
