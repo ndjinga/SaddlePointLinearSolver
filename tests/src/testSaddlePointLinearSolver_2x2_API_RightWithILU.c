@@ -78,7 +78,7 @@ int main( int argc, char **args ){
 
 	PetscLogStageRegister("Résolution du système linéaire", &linear_system_stage);//Instrumentation : début de la résolution du second membre
 	PetscLogStagePush( linear_system_stage);//Instrumentation
-	transformSystemRightWithILU(M,G,D,C,&A_hat,&Pmat, &C_hat, &G_hat, &ILU_M);
+	//transformSystemRightWithILU(M,G,D,C,&A_hat,&Pmat, &C_hat, &G_hat, &ILU_M);
 return 0;
 //##### Calling KSP solver and monitor convergence
 /*

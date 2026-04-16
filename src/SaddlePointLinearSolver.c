@@ -1,12 +1,65 @@
 #include "SaddlePointLinearSolver.h"
 
-PetscErrorCode multViaPC(Mat Ashell, Vec x, Vec y)
-{
-    PC  pc;
+/*
+    User-defined application context
+ */
+typedef struct {
+  IS          is_U;  /* indices of velocity lines */
+  IS          is_P;  /* indices of pressure lines */
+  PC          pcM;   /* preconditioner containing the ILU decomposition of the top left matrix M */
+  Mat         M;     /* top left submatrix */
+  Mat         G;     /* top right submatrix */
+  Vec         X_p;//Pressure components of the transformed unknown
+  Vec         X_u;//Velocity components of the transformed unknown
+  Vec         X_tmp_u;//Velocity components of the transformed unknown
+ } ApplicationCtx2x2;
 
+/* setup function for the right preconditioner */
+PetscErrorCode setupRight(PC pcshell)
+{
+    ApplicationCtx2x2 * ctx;
+    
     PetscFunctionBegin;
-    PetscCall(MatShellGetContext(Ashell, &pc));
-    PetscCall(PCApply( pc, x, y));
+    PetscCall(PCShellGetContext( pcshell, ctx));
+    MatCreateVecs( ctx->G, NULL, &ctx->X_tmp_u );
+    //Creation of matrix approximating the inverse of M via ilu factorisation
+    PCCreate( PETSC_COMM_WORLD, &ctx->pcM);
+    PCSetType( ctx->pcM, PCBJACOBI);
+    PCSetOperators( ctx->pcM, ctx->M, ctx->M);
+    PCSetFromOptions( ctx->pcM);
+    PCSetUp( ctx->pcM);
+    PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/* destroy function for the right preconditioner */
+PetscErrorCode destroyRight(PC pcshell)
+{
+    ApplicationCtx2x2 * ctx;
+    
+    PetscFunctionBegin;
+    PetscCall(PCShellGetContext( pcshell, ctx));
+    VecDestroy(&ctx->X_tmp_u);
+    VecDestroy(&ctx->X_u);
+    VecDestroy(&ctx->X_p);
+    PetscFunctionReturn(PETSC_SUCCESS);
+}
+
+/* multiplication operator for the right preconditioner */
+PetscErrorCode applyRight(PC pcshell, Vec x, Vec y)
+{
+    ApplicationCtx2x2 * ctx;
+    
+    PetscFunctionBegin;
+    PetscCall(PCShellGetContext( pcshell, ctx));
+    PetscCall(VecGetSubVector( x, ctx->is_P, &ctx->X_p) );
+    PetscCall(VecGetSubVector( x, ctx->is_U, &ctx->X_u) );
+
+    PetscCall(MatMult( ctx->G,   ctx->X_p,     ctx->X_tmp_u) );//X_tmp_u contains Gx_p
+    PetscCall(PCApply( ctx->pcM, ctx->X_tmp_u, ctx->X_tmp_u) );//X_tmp_u contains M^{-1}Gx_p
+    PetscCall(VecAXPY( ctx->X_u, -1, ctx->X_tmp_u) );//X_u contains X_u - M^{-1}Gx_p
+
+    PetscCall(VecRestoreSubVector( x, ctx->is_P, &ctx->X_p) );
+    PetscCall(VecRestoreSubVector( x, ctx->is_U, &ctx->X_u) );
     PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -353,8 +406,8 @@ void getSolutionFromXhat(Mat G, Vec v, Vec X_hat, Vec * X_output, Vec * X_u, Vec
     VecCreateNest( PETSC_COMM_WORLD, 2, IS_array, X_array, X_output);
     //VecConcatenate(2, X_array, X_output, NULL);//Works only in sequential mode
 
-    VecDestroy(&X_hat_u);
-    VecDestroy(&X_hat_p);
+    VecRestoreSubVector( X_hat, is_P, &X_hat_p);
+    VecRestoreSubVector( X_hat, is_U, &X_hat_u);
 }
 
 //##### Compute the error and check it is small
@@ -380,6 +433,9 @@ double computeErrorAndCheck( Vec X_anal, Vec X_output, IS is_U, IS is_P, Vec X_u
 
     PetscCheck( error < 1e-4, PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED, "Linear system did not return accurate solution. Error ||X-Xanal|| is too high (||X-Xanal||>1e-4) : ||X-Xanal||=%e\n", error);
 
+    VecRestoreSubVector( X_anal, is_P, &X_anal_p);
+    VecRestoreSubVector( X_anal, is_U, &X_anal_u);
+
     return error;
 }
 
@@ -394,15 +450,16 @@ int getbhatFrombinput(Mat D, Vec v, Vec b_input, Vec * b_hat, IS is_U, IS is_P, 
     Vec b_array[2];
     
     PetscCall( VecDuplicate(b_input,b_hat) );// b_hat will store the right hand side of the transformed system
-    PetscCall( VecGetSubVector( b_input, is_P, &b_hat_p) );
-    PetscCall( VecGetSubVector( b_input, is_U, &b_hat_u) );
+    PetscCall( VecGetSubVector( b_input, is_P, &b_hat_p_tmp) );
+    PetscCall( VecGetSubVector( b_input, is_U, &b_hat_u_tmp) );
 
-    PetscCall( VecDuplicate(b_hat_u,&b_hat_u_tmp) );
-    PetscCall( VecDuplicate(b_hat_p,&b_hat_p_tmp) );
-    PetscCall( VecPointwiseMult(b_hat_u_tmp,b_hat_u,v) );
+    PetscCall( VecDuplicate(b_hat_u_tmp,&b_hat_u) );
+    PetscCall( VecDuplicate(b_hat_p_tmp,&b_hat_p) );
+    VecCopy(b_hat_u_tmp,b_hat_u);
+    PetscCall( VecPointwiseMult(b_hat_u_tmp,b_hat_u_tmp,v) );
 
-    PetscCall( MatMult( D, b_hat_u_tmp, b_hat_p_tmp) );
-    PetscCall( VecAXPY( b_hat_p, -1, b_hat_p_tmp) );
+    PetscCall( MatMult( D, b_hat_u_tmp, b_hat_p) );
+    PetscCall( VecAYPX( b_hat_p, -1, b_hat_p_tmp) );
 
     if( useLowerTriangularTransform )
     {
@@ -418,8 +475,8 @@ int getbhatFrombinput(Mat D, Vec v, Vec b_input, Vec * b_hat, IS is_U, IS is_P, 
     //VecCreateNest( PETSC_COMM_WORLD, 2, NULL, b_array, &b_hat);//This generate an error message : "Nest vector argument 3 not setup "
     PetscCall( VecConcatenate(2, b_array, b_hat, NULL) );
 
-    VecDestroy(&b_hat_u_tmp);
-    VecDestroy(&b_hat_p_tmp);
+    PetscCall( VecRestoreSubVector( b_input, is_P, &b_hat_p_tmp) );
+    PetscCall( VecRestoreSubVector( b_input, is_U, &b_hat_u_tmp) );
 }
 
 //##### Solve the right transformed system for Xhat
@@ -453,6 +510,76 @@ int solveRightTransformedSystemForXhat( Mat A_hat, Mat Pmat, IS is_U, IS is_P, V
     PCSetType( pc1, PCJACOBI);
     PCSetType( pc2, PCGAMG);
 
+    PetscCall( KSPSetFromOptions(ksp) );
+    PetscCall( KSPSetUp(ksp) );
+    PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system A_hat*X_hat = b_input...\n");
+
+    PetscCall( KSPSolve(ksp,b_input, *X_hat) );
+
+    //Extract and display informations about the convergence
+    displayFieldSplitIterationNumbers( &ksp, residu);
+    
+    KSPDestroy(&ksp);
+    PetscFree(kspArray);
+
+    return PETSC_SUCCESS;
+}
+
+//##### Solve the right transformed system for Xhat
+int solveRightILUTransformedSystemForXhat( Mat A_input, Mat M, Mat G, IS is_U, IS is_P, Vec b_input, Vec * X_hat, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double *residu)
+{
+    KSP ksp;
+    KSPType ksp_type = KSPFBCGS;//BCGS seems very efficient
+    PC pc;
+
+//#### The PCFIELDSPLIT preconditioner (based on GAMG and ILU) ###//
+    KSP *kspArray;
+    PC pcfieldsplit, pcfieldsplit1, pcfieldsplit2;
+    KSPType ksp_type0, ksp_type1;
+    PCType pc_type=PCFIELDSPLIT, pc_type0, pc_type1;
+    int nblocks=2, iter, iter1, iter2;//iter = main iteration number, iter1 and iter2 are sub iteration numbers
+    PCCompositeType pc_composite_type = PC_COMPOSITE_MULTIPLICATIVE;// MULTIPLICATIVE = block triangular preconditioner, ADDITIVE  = block diagonal preconditioner
+
+    PCSetType(pcfieldsplit,pc_type);
+
+    PCFieldSplitSetType(pcfieldsplit, pc_composite_type);
+    PCFieldSplitSetIS(pcfieldsplit, "0",is_U);//The order here matters a lot between this line and the next
+    PCFieldSplitSetIS(pcfieldsplit, "1",is_P);//The order here matters a lot between this line and the previous
+    PCFieldSplitGetSubKSP( pcfieldsplit, &nblocks, &kspArray);
+    KSPSetType( kspArray[0], KSPPREONLY);
+    KSPSetType( kspArray[1], KSPPREONLY);
+    KSPGetPC(kspArray[0], &pcfieldsplit1);
+    KSPGetPC(kspArray[1], &pcfieldsplit2);
+
+    PCSetType( pcfieldsplit1, PCJACOBI);
+    PCSetType( pcfieldsplit2, PCGAMG);
+
+//### The upper triangular preconditioner corresponding to the triangular transform ####
+    PC pctransform;
+    ApplicationCtx2x2 ctx = 
+    {
+      .is_U = is_U,   /* indices of velocity lines */
+      .is_P = is_P,   /* indices of pressure lines */
+         .M = M,      /* top left submatrix */
+         .G = G       /* top right submatrix */
+    } ;
+
+    PCCreate(PETSC_COMM_WORLD,&pctransform);
+    PCSetType(pctransform,PCSHELL);
+    PCShellSetContext(pctransform,&ctx);
+    PCShellSetApply(pctransform,applyRight);
+    PCShellSetSetUp(pc,setupRight);                   
+    PCShellSetDestroy(pc,destroyRight);               
+
+//#### Setting the KSP solver ###//
+    PetscPrintf(PETSC_COMM_WORLD,"Setting the solver ...\n");
+    KSPCreate(PETSC_COMM_WORLD,&ksp);
+    KSPSetType(ksp, ksp_type);
+    PetscCall( KSPSetOperators(ksp,A_input,A_input) );
+    KSPSetTolerances(ksp,rtol, abstol, dtol, numberMaxOfIter);
+    KSPSetPC(ksp,pc);
+    KSPSetPCSide( ksp, PC_RIGHT);
+    PetscPrintf(PETSC_COMM_WORLD,"Setting the preconditioner %s...\n", pc_type);
     PetscCall( KSPSetFromOptions(ksp) );
     PetscCall( KSPSetUp(ksp) );
     PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system A_hat*X_hat = b_input...\n");
@@ -730,82 +857,4 @@ int displayFieldSplitIterationNumbers(KSP *ksp, double *residu)
             else
                 PetscPrintf(PETSC_COMM_WORLD, "PETSc divergence reason %d \n" , reason);
         }
-}
-
-int transformSystemRightWithILU( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * G_hat, Mat * ILU_M)
-{
-    PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix by multiplication to the right by an upper triangular matrix U : Ahat = A_input*U ...\n");
-    PetscPrintf(PETSC_COMM_WORLD,"Use of approximate inverse for M based on ILU factorisation ...\n");
-
-    PetscMPIInt    size;        /* size of communicator */
-    PetscMPIInt    rank;        /* processor rank */
-    MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
-    MPI_Comm_size(PETSC_COMM_WORLD,&size);
-    PetscInt nrows_loc, ncols_loc;//Local number of rows and columns of A_input
-    PetscInt nrows, ncolumns;//Total number of rows and columns of A_input
-    PetscInt irow_min, irow_max;//min and max indices of rows stored locally on this process
-    PC pcilu;
-    
-    Mat ILU_M_redistributed;
-    Mat D_M_inv_G, Mat_array[4];// D_M_inv = diag(M)^{-1}
-    VecScatter scat;//tool to redistribute a vector on the processors
-    IS is_to, is_from;
-
-    MatGetLocalSize( M, &nrows_loc, &ncols_loc);
-    MatGetSize( M, &nrows, &ncolumns);
-    MatGetOwnershipRange( M, &irow_min, &irow_max);
-
-    //Creation of matrix approximating the inverse of M via ilu factorisation
-    PCCreate( PETSC_COMM_WORLD, &pcilu);
-    PCSetType( pcilu, PCBJACOBI);
-    PCSetOperators( pcilu, M, M);
-    PCSetFromOptions( pcilu);
-    PCSetUp( pcilu);
-    MatCreateShell( PETSC_COMM_WORLD, nrows_loc, ncols_loc, nrows, ncolumns, &pcilu, ILU_M);
-    PetscCall(MatShellSetOperation( *ILU_M, MATOP_MULT, (void (*)(void))multViaPC));
-    
-    // Creation of D_M_inv_G = D_M_inv*G = diag(M)^{-1} * G
-    PetscCall( MatDuplicate(G,MAT_COPY_VALUES,&D_M_inv_G) );//D_M_inv_G contains G
-    MatMatMult( *ILU_M,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&D_M_inv_G);//D_M_inv_G contains D_M_inv*G
-    /*
-    PetscCall( MatCreateVecs(D_M_inv_G,NULL,&v_redistributed) );//v_redistributed has the parallel distribution of D_M_inv_G
-    VecGetOwnershipRange(*v,&col_min,&col_max);
-    ISCreateStride(PETSC_COMM_WORLD, col_max-col_min, col_min, 1, &is_from);
-    VecGetOwnershipRange(v_redistributed,&col_min,&col_max);
-    ISCreateStride(PETSC_COMM_WORLD, col_max-col_min, col_min, 1, &is_to);
-    VecScatterCreate(*v,is_from,v_redistributed,is_to,&scat);
-    VecScatterBegin(scat, *v, v_redistributed,INSERT_VALUES,SCATTER_FORWARD);
-    VecScatterEnd(  scat, *v, v_redistributed,INSERT_VALUES,SCATTER_FORWARD);
-    MatDiagonalScale( D_M_inv_G, v_redistributed, NULL);//D_M_inv_G contains D_M_inv*G
-    */
-
-    // Creation of C_hat
-    MatMatMult(D,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,C_hat);//C_hat contains D*D_M_inv*G
-    MatAYPX(*C_hat,-1.0,C,SUBSET_NONZERO_PATTERN);//C_hat contains C - D*D_M_inv*G
-
-    // Creation of G_hat
-    MatMatMult(M,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,G_hat);//G_hat contains M*D_M_inv*G
-    MatAYPX(*G_hat,-1.0,G,UNKNOWN_NONZERO_PATTERN);//G_hat contains G - M*D_M_inv*G
-
-    //Creation of global matrices using MatCreateNest
-    Mat_array[3]=*C_hat;//Top right block of A_hat
-    Mat_array[2]=D;//Bottom left block of A_hat
-    Mat_array[1]=*G_hat;//Top right block of A_hat
-    Mat_array[0]=M;//Top left block of A_hat
-
-    // Creation of A_hat 
-    MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,A_hat);
-
-    // Creation of Pmat
-    Mat_array[0]=*ILU_M;//Replace M by its diagonal to ease inversion
-    MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,Pmat);
-
-    PetscPrintf(PETSC_COMM_WORLD,"... matrix transformed \n");    
-
-    //MatDestroy(ILU_M);
-    MatDestroy(C_hat);
-    MatDestroy(G_hat);
-    MatDestroy(&D_M_inv_G);
-    //VecScatterDestroy(&scat);
-    //VecDestroy(&v_redistributed);
 }
