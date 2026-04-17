@@ -49,11 +49,12 @@ int main( int argc, char **args ){
 	MPI_Comm_size(PETSC_COMM_WORLD,&size);
 	PetscInt n_u, n_p, n;//Total number of velocity and pressure lines. n = n_u+ n_p
 	char file[1][PETSC_MAX_PATH_LEN], mat_type[256]; // File to load, matrix type
-	Mat A_input, A_hat, C_hat, G_hat, ILU_M;
+	Mat A_input, A_hat, C_hat, G_hat, diag_2M;
 	Mat M, G, D, C;
 	IS is_U,is_P;
 	Vec b_input, X_hat, X_anal;
 	double error,  rtol=1e-7, residu;
+    PC pcshell;
 
     /* Minimum profiling for cpu time */
 	PetscLogStage  linear_system_stage;
@@ -78,8 +79,10 @@ int main( int argc, char **args ){
 
 	PetscLogStageRegister("Résolution du système linéaire", &linear_system_stage);//Instrumentation : début de la résolution du second membre
 	PetscLogStagePush( linear_system_stage);//Instrumentation
+    getAhatRight( M, G, D, C, &A_hat, &C_hat, &G_hat, &diag_2M);
+
 //##### Calling KSP solver and monitor convergence
-    solveRightILUTransformedSystemForXhat( A_input, M, G, is_U, is_P, b_input, &X_hat, rtol,PETSC_DEFAULT,PETSC_DEFAULT, PETSC_DEFAULT, &residu);
+    solveRightILUTransformedSystemForXhat( A_input, A_hat, M, G, is_U, is_P, b_input, &X_hat, pcshell, rtol,PETSC_DEFAULT,PETSC_DEFAULT, PETSC_DEFAULT, &residu);
 
 /*
 	Vec X_output;

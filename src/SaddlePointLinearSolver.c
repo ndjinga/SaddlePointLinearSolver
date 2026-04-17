@@ -7,7 +7,6 @@ typedef struct {
   IS          is_U;  /* indices of velocity lines */
   IS          is_P;  /* indices of pressure lines */
   PC          pcM;   /* preconditioner containing the ILU decomposition of the top left matrix M */
-  Mat         M;     /* top left submatrix */
   Mat         G;     /* top right submatrix */
   Vec         X_p;//Pressure components of the transformed unknown
   Vec         X_u;//Velocity components of the transformed unknown
@@ -24,11 +23,6 @@ PetscErrorCode setupRight(PC pcshell)
     PetscFunctionBegin;
     PetscCall(PCShellGetContext( pcshell, &ctx));
     MatCreateVecs( ctx->G, NULL, &ctx->GX_p );
-/*
-   Mat ILU_mat;
-   PetscCall(PCFactorGetMatrix(ctx->pcM, &ILU_mat));
-   MatView( ILU_mat, PETSC_VIEWER_STDOUT_WORLD );
-*/
     PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -278,6 +272,67 @@ int transformSystemRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, M
     VecDestroy(&v_redistributed);
 }
 
+int getAhatRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * C_hat, Mat * G_hat, Mat * diag_2M )
+{
+    PetscPrintf(PETSC_COMM_WORLD,"Construction of the transform matrix by multiplication to the right by an upper triangular matrix U : Ahat = A_input*U ...\n");
+
+    Vec v, v_redistributed;
+    Mat D_M_inv_G, Mat_array[4];// D_M_inv = diag(M)^{-1}
+    VecScatter scat;//tool to redistribute a vector on the processors
+    IS is_to, is_from;
+    PetscInt col_min, col_max;
+
+    //Extraction of the diagonal of M
+    PetscCall( MatCreateVecs(M,NULL,&v) );//v has the size of M
+    PetscCall( MatGetDiagonal(M,v) );
+
+    //Creation of matrix 2*diag(M). Why not use MatCreateDiagonal ???
+    PetscCall( MatDuplicate(M, MAT_DO_NOT_COPY_VALUES, diag_2M) );
+    MatEliminateZeros(*diag_2M, PETSC_TRUE);
+    MatDiagonalSet(*diag_2M, v,  INSERT_VALUES);
+    MatScale(*diag_2M,2);//store 2*diagonal part of M
+    PetscCall( VecReciprocal(v) );//Must first check that all the coefficients are non zero
+    
+    // Creation of D_M_inv_G = D_M_inv*G = diag(M)^{-1} * G
+    PetscCall( MatDuplicate(G,MAT_COPY_VALUES,&D_M_inv_G) );//D_M_inv_G contains G
+    PetscCall( MatCreateVecs(D_M_inv_G,NULL,&v_redistributed) );//v_redistributed has the parallel distribution of D_M_inv_G
+    VecGetOwnershipRange(v,&col_min,&col_max);
+    ISCreateStride(PETSC_COMM_WORLD, col_max-col_min, col_min, 1, &is_from);
+    VecGetOwnershipRange(v_redistributed,&col_min,&col_max);
+    ISCreateStride(PETSC_COMM_WORLD, col_max-col_min, col_min, 1, &is_to);
+    VecScatterCreate(v,is_from,v_redistributed,is_to,&scat);
+    VecScatterBegin(scat, v, v_redistributed,INSERT_VALUES,SCATTER_FORWARD);
+    VecScatterEnd(  scat, v, v_redistributed,INSERT_VALUES,SCATTER_FORWARD);
+    MatDiagonalScale( D_M_inv_G, v_redistributed, NULL);//D_M_inv_G contains D_M_inv*G
+
+    // Creation of C_hat
+    MatMatMult(D,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,C_hat);//C_hat contains D*D_M_inv*G
+    MatAYPX(*C_hat,-1.0,C,SUBSET_NONZERO_PATTERN);//C_hat contains C - D*D_M_inv*G
+
+    // Creation of G_hat
+    MatMatMult(M,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,G_hat);//G_hat contains M*D_M_inv*G
+    MatAYPX(*G_hat,-1.0,G,UNKNOWN_NONZERO_PATTERN);//G_hat contains G - M*D_M_inv*G
+
+    //Creation of global matrices using MatCreateNest
+    Mat_array[3]=*C_hat;//Top right block of A_hat
+    Mat_array[2]=D;//Bottom left block of A_hat
+    Mat_array[1]=*G_hat;//Top right block of A_hat
+    Mat_array[0]=M;//Top left block of A_hat
+
+    // Creation of A_hat 
+    MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,A_hat);
+
+    PetscPrintf(PETSC_COMM_WORLD,"... matrix transformed \n");    
+
+    MatDestroy(diag_2M);
+    MatDestroy(C_hat);
+    MatDestroy(G_hat);
+    MatDestroy(&D_M_inv_G);
+    VecScatterDestroy(&scat);
+    VecDestroy(&v);
+    VecDestroy(&v_redistributed);
+}
+
 //##### Application of the transformation A -> A_hat (and b -> b_hat) by multiplication to the left by a lower triangular matrix
 //## Vector v must be deleted by caller
 /*                                 *M   G*                                                       */
@@ -493,7 +548,6 @@ int solveRightTransformedSystemForXhat( Mat A_hat, Mat Pmat, IS is_U, IS is_P, V
     PC pc, pc1, pc2;
     KSPType ksp_type1,  ksp_type = KSPFBCGS;//BCGS seems very efficient
     PCType pc_type=PCFIELDSPLIT;
-    int nblocks=2, iter, iter1, iter2;//iter = main iteration number, iter1 and iter2 are sub iteration numbers
     PCCompositeType pc_composite_type = PC_COMPOSITE_MULTIPLICATIVE;// MULTIPLICATIVE = block triangular preconditioner, ADDITIVE  = block diagonal preconditioner
 
     PetscPrintf(PETSC_COMM_WORLD,"Setting the solver ...\n");
@@ -508,7 +562,8 @@ int solveRightTransformedSystemForXhat( Mat A_hat, Mat Pmat, IS is_U, IS is_P, V
     PCFieldSplitSetType(pc, pc_composite_type);
     PCFieldSplitSetIS(pc, "0",is_U);//The order here matters a lot between this line and the next
     PCFieldSplitSetIS(pc, "1",is_P);//The order here matters a lot between this line and the previous
-    PCFieldSplitGetSubKSP( pc, &nblocks, &kspArray);
+    PetscCall( PCSetUp( pc) );
+    PCFieldSplitGetSubKSP( pc, NULL, &kspArray);
     KSPSetType( kspArray[0], KSPPREONLY);
     KSPSetType( kspArray[1], KSPPREONLY);
     KSPGetPC(kspArray[0], &pc1);
@@ -533,7 +588,7 @@ int solveRightTransformedSystemForXhat( Mat A_hat, Mat Pmat, IS is_U, IS is_P, V
 }
 
 //##### Solve the right transformed system for Xhat
-int solveRightILUTransformedSystemForXhat( Mat A_input, Mat M, Mat G, IS is_U, IS is_P, Vec b_input, Vec * X_hat, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double *residu)
+int solveRightILUTransformedSystemForXhat( Mat A_input, Mat A_hat, Mat M, Mat G, IS is_U, IS is_P, Vec b_input, Vec * X_hat, PC pctransform, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double *residu)
 {
     KSP ksp;
     KSPType ksp_type = KSPFBCGS;//BCGS seems very efficient
@@ -542,45 +597,42 @@ int solveRightILUTransformedSystemForXhat( Mat A_input, Mat M, Mat G, IS is_U, I
     PetscPrintf(PETSC_COMM_WORLD,"Setting the main solver ...\n");
     KSPCreate(PETSC_COMM_WORLD,&ksp);
     KSPSetType(ksp, ksp_type);
-    PetscCall( KSPSetOperators(ksp,A_input,A_input) );
+    PetscCall( KSPSetOperators(ksp,A_input,A_hat) );
     KSPSetTolerances(ksp,rtol, abstol, dtol, numberMaxOfIter);
-    KSPSetPCSide( ksp, PC_RIGHT);
     KSPGetPC(ksp,&pc);
-    PetscPrintf(PETSC_COMM_WORLD,"Setting the main preconditioner ...\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Setting the preconditioner ...\n");
     PCSetType(pc,PCCOMPOSITE);
     PCCompositeSetType( pc, PC_COMPOSITE_MULTIPLICATIVE);
 
 //#### The PCFIELDSPLIT preconditioner (based on GAMG and ILU) ###//
     KSP *kspArray;
     PC pcfieldsplit, pcfieldsplit1, pcfieldsplit2;
-    int nblocks=2, iter, iter1, iter2;//iter = main iteration number, iter1 and iter2 are sub iteration numbers
 
     PCCreate(PETSC_COMM_WORLD,&pcfieldsplit);
     PCSetType(pcfieldsplit,PCFIELDSPLIT);
-    PetscCall( PCSetOperators(pcfieldsplit,A_input,A_input) );
+    PetscCall( PCSetOperators(pcfieldsplit,A_input,A_hat) );
     PCFieldSplitSetType(pcfieldsplit, PC_COMPOSITE_MULTIPLICATIVE);// MULTIPLICATIVE = block triangular preconditioner, ADDITIVE  = block diagonal preconditioner
     PCFieldSplitSetIS(pcfieldsplit, "0",is_U);//The order here matters a lot between this line and the next
     PCFieldSplitSetIS(pcfieldsplit, "1",is_P);//The order here matters a lot between this line and the previous
-    PCFieldSplitGetSubKSP( pcfieldsplit, &nblocks, &kspArray);
+    PetscCall( PCSetUp( pcfieldsplit) );
+    PCFieldSplitGetSubKSP( pcfieldsplit, NULL, &kspArray);
     KSPSetType( kspArray[0], KSPPREONLY);
     KSPSetType( kspArray[1], KSPPREONLY);
     KSPGetPC(kspArray[0], &pcfieldsplit1);
     KSPGetPC(kspArray[1], &pcfieldsplit2);
 
-    PCSetType( pcfieldsplit1, PCJACOBI);
+    PCSetType( pcfieldsplit1, PCBJACOBI);
     PCSetType( pcfieldsplit2, PCGAMG);
-    PetscCall( PCSetUp( pcfieldsplit) );
 
 //### The upper triangular preconditioner corresponding to the triangular transform ####
-    PC pctransform;
+    //PC pctransform;
     ApplicationCtx2x2 ctx = 
     {
       .is_U = is_U,              /* indices of velocity lines */
       .is_P = is_P,              /* indices of pressure lines */
-         .pcM = pcfieldsplit1,   /* ILU factorisation of the top left submatrix M */
-         .M = M,                  /* top left submatrix */
+       .pcM = pcfieldsplit1,     /* ILU factorisation of the top left submatrix M */
          .G = G                  /* top right submatrix */
-    } ;
+    };
 
     PCCreate(PETSC_COMM_WORLD,&pctransform);
     PCSetType(pctransform,PCSHELL);
@@ -614,7 +666,6 @@ int solveLeftTransformedSystemForXoutput( Mat Ahat, Mat Pmat, IS is_U, IS is_P, 
     PC pc, pc1, pc2;
     KSPType ksp_type = KSPFBCGS;//FBCGS seems much more efficient than FGMRES
     PCType pc_type=PCFIELDSPLIT;
-    int nblocks=2, iter, iter1, iter2;//iter = main iteration number, iter1 and iter2 are sub iteration numbers
     PCCompositeType pc_composite_type = PC_COMPOSITE_MULTIPLICATIVE;// MULTIPLICATIVE = block lower triangular preconditioner, ADDITIVE  = block diagonal preconditioner
 
     PetscPrintf(PETSC_COMM_WORLD,"Setting the solver ...\n");
@@ -629,7 +680,8 @@ int solveLeftTransformedSystemForXoutput( Mat Ahat, Mat Pmat, IS is_U, IS is_P, 
     PCFieldSplitSetType(pc, pc_composite_type);
     PCFieldSplitSetIS(pc, "0",is_P);//The order here matters a lot between this line and the next
     PCFieldSplitSetIS(pc, "1",is_U);//The order here matters a lot between this line and the previous
-    PCFieldSplitGetSubKSP( pc, &nblocks, &kspArray);
+    PetscCall( PCSetUp( pc) );
+    PCFieldSplitGetSubKSP( pc, NULL, &kspArray);
     KSPSetType( kspArray[0], KSPPREONLY);
     KSPSetType( kspArray[1], KSPPREONLY);
     KSPGetPC(kspArray[0], &pc1);
@@ -768,7 +820,6 @@ int solveLeftRightTransformedSystemForXhat( Mat A_hat, Mat Pmat, IS is_U, IS is_
     PC pc, pc1, pc2;
     KSPType ksp_type = KSPFBCGS;//BCGS seems very efficient
     PCType pc_type=PCFIELDSPLIT;
-    int nblocks=2, iter, iter1, iter2;//iter = main iteration number, iter1 and iter2 are sub iteration numbers
     PCCompositeType pc_composite_type = PC_COMPOSITE_MULTIPLICATIVE;// MULTIPLICATIVE = block triangular preconditioner, ADDITIVE  = block diagonal preconditioner
 
     PetscPrintf(PETSC_COMM_WORLD,"Setting the solver ...\n");
@@ -783,7 +834,8 @@ int solveLeftRightTransformedSystemForXhat( Mat A_hat, Mat Pmat, IS is_U, IS is_
     PCFieldSplitSetType(pc, pc_composite_type);
     PCFieldSplitSetIS(pc, "0",is_U);//The order here matters a lot between this line and the next
     PCFieldSplitSetIS(pc, "1",is_P);//The order here matters a lot between this line and the previous
-    PCFieldSplitGetSubKSP( pc, &nblocks, &kspArray);
+    PetscCall( PCSetUp( pc) );
+    PCFieldSplitGetSubKSP( pc, NULL, &kspArray);
     KSPSetType( kspArray[0], KSPPREONLY);
     KSPSetType( kspArray[1], KSPPREONLY);
     KSPGetPC(kspArray[0], &pc1);
