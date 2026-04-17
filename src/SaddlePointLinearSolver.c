@@ -11,8 +11,10 @@ typedef struct {
   Mat         G;     /* top right submatrix */
   Vec         X_p;//Pressure components of the transformed unknown
   Vec         X_u;//Velocity components of the transformed unknown
-  Vec         X_tmp_u;//Velocity components of the transformed unknown
- } ApplicationCtx2x2;
+  Vec         GX_p;//Storage of G*X_p
+  Vec         Y_u;//Storage of M^{-1}*G*X_p
+  Vec         Y_p;
+} ApplicationCtx2x2;
 
 /* setup function for the right preconditioner */
 PetscErrorCode setupRight(PC pcshell)
@@ -20,14 +22,13 @@ PetscErrorCode setupRight(PC pcshell)
     ApplicationCtx2x2 * ctx;
     
     PetscFunctionBegin;
-    PetscCall(PCShellGetContext( pcshell, ctx));
-    MatCreateVecs( ctx->G, NULL, &ctx->X_tmp_u );
-    //Creation of matrix approximating the inverse of M via ilu factorisation
-    PCCreate( PETSC_COMM_WORLD, &ctx->pcM);
-    PCSetType( ctx->pcM, PCBJACOBI);
-    PCSetOperators( ctx->pcM, ctx->M, ctx->M);
-    PCSetFromOptions( ctx->pcM);
-    PCSetUp( ctx->pcM);
+    PetscCall(PCShellGetContext( pcshell, &ctx));
+    MatCreateVecs( ctx->G, NULL, &ctx->GX_p );
+/*
+   Mat ILU_mat;
+   PetscCall(PCFactorGetMatrix(ctx->pcM, &ILU_mat));
+   MatView( ILU_mat, PETSC_VIEWER_STDOUT_WORLD );
+*/
     PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -37,10 +38,13 @@ PetscErrorCode destroyRight(PC pcshell)
     ApplicationCtx2x2 * ctx;
     
     PetscFunctionBegin;
-    PetscCall(PCShellGetContext( pcshell, ctx));
-    VecDestroy(&ctx->X_tmp_u);
+    PetscCall(PCShellGetContext( pcshell, &ctx));
+    VecDestroy(&ctx->GX_p);
+    VecDestroy(&ctx->Y_u);
+    VecDestroy(&ctx->Y_p);
     VecDestroy(&ctx->X_u);
     VecDestroy(&ctx->X_p);
+    PCDestroy(&ctx->pcM);
     PetscFunctionReturn(PETSC_SUCCESS);
 }
 
@@ -50,13 +54,16 @@ PetscErrorCode applyRight(PC pcshell, Vec x, Vec y)
     ApplicationCtx2x2 * ctx;
     
     PetscFunctionBegin;
-    PetscCall(PCShellGetContext( pcshell, ctx));
+    PetscCall(PCShellGetContext( pcshell, &ctx));
     PetscCall(VecGetSubVector( x, ctx->is_P, &ctx->X_p) );
     PetscCall(VecGetSubVector( x, ctx->is_U, &ctx->X_u) );
+    PetscCall(VecGetSubVector( y, ctx->is_P, &ctx->Y_p) );
+    PetscCall(VecGetSubVector( y, ctx->is_U, &ctx->Y_u) );
 
-    PetscCall(MatMult( ctx->G,   ctx->X_p,     ctx->X_tmp_u) );//X_tmp_u contains Gx_p
-    PetscCall(PCApply( ctx->pcM, ctx->X_tmp_u, ctx->X_tmp_u) );//X_tmp_u contains M^{-1}Gx_p
-    PetscCall(VecAXPY( ctx->X_u, -1, ctx->X_tmp_u) );//X_u contains X_u - M^{-1}Gx_p
+    PetscCall(MatMult( ctx->G,   ctx->X_p,  ctx->GX_p) );//GX_p contains G*x_p
+    PetscCall(PCApply( ctx->pcM, ctx->GX_p, ctx->Y_u ) );//Y_u contains M^{-1}*G*x_p
+    PetscCall(VecAYPX( ctx->Y_u, -1, ctx->X_u) );//X_u contains X_u - M^{-1}*G*x_p
+    VecCopy(ctx->X_p,ctx->Y_p);
 
     PetscCall(VecRestoreSubVector( x, ctx->is_P, &ctx->X_p) );
     PetscCall(VecRestoreSubVector( x, ctx->is_U, &ctx->X_u) );
@@ -532,6 +539,17 @@ int solveRightILUTransformedSystemForXhat( Mat A_input, Mat M, Mat G, IS is_U, I
     KSPType ksp_type = KSPFBCGS;//BCGS seems very efficient
     PC pc;
 
+    PetscPrintf(PETSC_COMM_WORLD,"Setting the main solver ...\n");
+    KSPCreate(PETSC_COMM_WORLD,&ksp);
+    KSPSetType(ksp, ksp_type);
+    PetscCall( KSPSetOperators(ksp,A_input,A_input) );
+    KSPSetTolerances(ksp,rtol, abstol, dtol, numberMaxOfIter);
+    KSPSetPCSide( ksp, PC_RIGHT);
+    KSPGetPC(ksp,&pc);
+    PetscPrintf(PETSC_COMM_WORLD,"Setting the main preconditioner ...\n");
+    PCSetType(pc,PCCOMPOSITE);
+    PCCompositeSetType( pc, PC_COMPOSITE_MULTIPLICATIVE);
+
 //#### The PCFIELDSPLIT preconditioner (based on GAMG and ILU) ###//
     KSP *kspArray;
     PC pcfieldsplit, pcfieldsplit1, pcfieldsplit2;
@@ -539,6 +557,7 @@ int solveRightILUTransformedSystemForXhat( Mat A_input, Mat M, Mat G, IS is_U, I
 
     PCCreate(PETSC_COMM_WORLD,&pcfieldsplit);
     PCSetType(pcfieldsplit,PCFIELDSPLIT);
+    PetscCall( PCSetOperators(pcfieldsplit,A_input,A_input) );
     PCFieldSplitSetType(pcfieldsplit, PC_COMPOSITE_MULTIPLICATIVE);// MULTIPLICATIVE = block triangular preconditioner, ADDITIVE  = block diagonal preconditioner
     PCFieldSplitSetIS(pcfieldsplit, "0",is_U);//The order here matters a lot between this line and the next
     PCFieldSplitSetIS(pcfieldsplit, "1",is_P);//The order here matters a lot between this line and the previous
@@ -548,17 +567,19 @@ int solveRightILUTransformedSystemForXhat( Mat A_input, Mat M, Mat G, IS is_U, I
     KSPGetPC(kspArray[0], &pcfieldsplit1);
     KSPGetPC(kspArray[1], &pcfieldsplit2);
 
-    PCSetType( pcfieldsplit1, PCJACOBI);
-    PCSetType( pcfieldsplit2, PCGAMG);
+    PCSetType( pcfieldsplit1, PCBJACOBI);
+    PCSetType( pcfieldsplit2, PCNONE);
+    PetscCall( PCSetUp( pcfieldsplit) );
 
 //### The upper triangular preconditioner corresponding to the triangular transform ####
     PC pctransform;
     ApplicationCtx2x2 ctx = 
     {
-      .is_U = is_U,   /* indices of velocity lines */
-      .is_P = is_P,   /* indices of pressure lines */
-         .M = M,      /* top left submatrix */
-         .G = G       /* top right submatrix */
+      .is_U = is_U,              /* indices of velocity lines */
+      .is_P = is_P,              /* indices of pressure lines */
+         .pcM = pcfieldsplit1,   /* ILU factorisation of the top left submatrix M */
+         .M = M,                  /* top left submatrix */
+         .G = G                  /* top right submatrix */
     } ;
 
     PCCreate(PETSC_COMM_WORLD,&pctransform);
@@ -569,16 +590,6 @@ int solveRightILUTransformedSystemForXhat( Mat A_input, Mat M, Mat G, IS is_U, I
     PCShellSetDestroy(pctransform,destroyRight);               
 
 //#### Setting the KSP solver ###//
-    PetscPrintf(PETSC_COMM_WORLD,"Setting the main solver ...\n");
-    KSPCreate(PETSC_COMM_WORLD,&ksp);
-    KSPSetType(ksp, ksp_type);
-    PetscCall( KSPSetOperators(ksp,A_input,A_input) );
-    KSPSetTolerances(ksp,rtol, abstol, dtol, numberMaxOfIter);
-    KSPGetPC(ksp,&pc);
-    KSPSetPCSide( ksp, PC_RIGHT);
-    PetscPrintf(PETSC_COMM_WORLD,"Setting the main preconditioner ...\n");
-    PCSetType(pc,PCCOMPOSITE);
-    PCCompositeSetType( pc, PC_COMPOSITE_MULTIPLICATIVE);
     PCCompositeAddPC( pc, pctransform);
     PCCompositeAddPC( pc, pcfieldsplit);
     PetscCall( KSPSetFromOptions(ksp) );
@@ -878,7 +889,9 @@ int displayPCCompositeIterationNumbers(KSP *ksp, double *residu)
     KSPGetTolerances( *ksp, &rtol, &abstol, &dtol, &numberMaxOfIter);
     KSPGetPC(*ksp,&pc);
     PCGetType( pc, &pc_type);
-    PetscCheck( pc_type == PCCOMPOSITE, MPI_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Display function  displayPCCompositeIterationNumbers works for PCCOMPOSITE preconditioners, pc_type = %s", pc_type);
+    PetscBool isPCComposite;
+    PetscCall(PetscStrcmp(pc_type ,PCCOMPOSITE, &isPCComposite));
+    PetscCheck( isPCComposite, MPI_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Display function  displayPCCompositeIterationNumbers works for PCCOMPOSITE preconditioners, pc_type = %s, PCCOMPOSITE = %s", pc_type, PCCOMPOSITE);
     PCCompositeGetNumberPC( pc, &nprecs);
     PetscCheck( nprecs == 2, MPI_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Display function displayPCCompositeIterationNumbers works for 2 sub preconditioners, nprecs = %d", nprecs);
     PCCompositeGetPC( pc, 0, &pc1);
