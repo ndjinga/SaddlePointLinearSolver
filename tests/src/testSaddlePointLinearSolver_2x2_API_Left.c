@@ -61,7 +61,7 @@ int main( int argc, char **args ){
 	MPI_Comm_size(PETSC_COMM_WORLD,&size);
 	PetscInt n_u, n_p, n;//Total number of velocity and pressure lines. n = n_u+ n_p
 	char file[1][PETSC_MAX_PATH_LEN], mat_type[256]; // File to load, matrix type
-	Mat A_input, A_hat, Pmat,  C_hat, D_hat, diag_2M;
+	Mat A_input, A_hat, Pmat;
 	Mat M, G, D, C;
 	IS is_U,is_P;
 	Vec b_input, b_hat, X_output, X_anal;
@@ -90,7 +90,7 @@ int main( int argc, char **args ){
 
 	PetscLogStageRegister("Résolution du système linéaire", &linear_system_stage);//Instrumentation : début de la résolution du second membre
 	PetscLogStagePush( linear_system_stage);//Instrumentation
-	transformSystemLeft(M,G,D,C,&A_hat,&Pmat, &C_hat, &D_hat, &diag_2M, &v, useLowerTriangularTransform);
+	transformSystemLeft(M,G,D,C,&A_hat,&Pmat, &v, useLowerTriangularTransform);
 
     getbhatFrombinput( D, v, b_input, &b_hat, is_U, is_P, useLowerTriangularTransform);
 
@@ -101,8 +101,8 @@ int main( int argc, char **args ){
     /* Change the index set because of the permutation u<->p in the unknown vector */
     if( useLowerTriangularTransform )
     {
-	ISShift( is_U,  n_p, is_U);
-	ISShift( is_P, -n_u, is_P);        
+	  ISShift( is_U,  n_p, is_U);
+	  ISShift( is_P, -n_u, is_P);        
     }
 
     solveLeftTransformedSystemForXoutput( A_hat, Pmat, is_U, is_P, b_hat, &X_output, rtol,PETSC_DEFAULT,PETSC_DEFAULT, PETSC_DEFAULT, &residu, useLowerTriangularTransform);
@@ -118,8 +118,8 @@ int main( int argc, char **args ){
     /* Change the index set because of the permutation u<->p in the unknown vector */
     if( useLowerTriangularTransform )
     {
-	ISShift( is_U, -n_p, is_U);
-	ISShift( is_P,  n_u, is_P);        
+	  ISShift( is_U, -n_p, is_U);
+	  ISShift( is_P,  n_u, is_P);        
     }
 
 	error = computeErrorAndCheck( X_anal, X_output, is_U, is_P, X_u, X_p);	
@@ -133,7 +133,6 @@ int main( int argc, char **args ){
 	MatDestroy(&D);	
 	MatDestroy(&G);
 	MatDestroy(&C);
-MatDestroy(&diag_2M);
 
 	VecDestroy(&b_input);
 	VecDestroy(&b_hat);

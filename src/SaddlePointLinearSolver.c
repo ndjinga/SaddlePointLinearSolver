@@ -208,12 +208,13 @@ void buildRHSVector( Mat A_input, PetscInt n_u, PetscInt n_p, Vec * X_anal, Vec 
 /*                                 *D          C_hat *                                           */
 /*                                                                                               */
 /*************************************************************************************************/
-int transformSystemRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * G_hat, Mat * diag_2M, Vec * v)
+int transformSystemRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Vec * v)
 {
     PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix by multiplication to the right by an upper triangular matrix U : Ahat = A_input*U ...\n");
 
     Vec v_redistributed;
     Mat D_M_inv_G, Mat_array[4];// D_M_inv = diag(M)^{-1}
+    Mat C_hat, G_hat, diag_2M;
     VecScatter scat;//tool to redistribute a vector on the processors
     IS is_to, is_from;
     PetscInt col_min, col_max;
@@ -223,10 +224,10 @@ int transformSystemRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, M
     MatGetDiagonal(M,*v);
 
     //Creation of matrix 2*diag(M). Why not use MatCreateDiagonal ???
-    PetscCall( MatDuplicate(M, MAT_DO_NOT_COPY_VALUES, diag_2M) );
-    MatEliminateZeros(*diag_2M, PETSC_TRUE);
-    MatDiagonalSet(*diag_2M, *v,  INSERT_VALUES);
-    MatScale(*diag_2M,2);//store 2*diagonal part of M
+    PetscCall( MatDuplicate(M, MAT_DO_NOT_COPY_VALUES, &diag_2M) );
+    MatEliminateZeros(diag_2M, PETSC_TRUE);
+    MatDiagonalSet(diag_2M, *v,  INSERT_VALUES);
+    MatScale(diag_2M,2);//store 2*diagonal part of M
     PetscCall( VecReciprocal(*v) );//Must first check that all the coefficients are non zero
     
     // Creation of D_M_inv_G = D_M_inv*G = diag(M)^{-1} * G
@@ -242,42 +243,43 @@ int transformSystemRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, M
     MatDiagonalScale( D_M_inv_G, v_redistributed, NULL);//D_M_inv_G contains D_M_inv*G
 
     // Creation of C_hat
-    MatMatMult(D,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,C_hat);//C_hat contains D*D_M_inv*G
-    MatAYPX(*C_hat,-1.0,C,SUBSET_NONZERO_PATTERN);//C_hat contains C - D*D_M_inv*G
+    MatMatMult(D,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&C_hat);//C_hat contains D*D_M_inv*G
+    MatAYPX(C_hat,-1.0,C,SUBSET_NONZERO_PATTERN);//C_hat contains C - D*D_M_inv*G
 
     // Creation of G_hat
-    MatMatMult(M,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,G_hat);//G_hat contains M*D_M_inv*G
-    MatAYPX(*G_hat,-1.0,G,UNKNOWN_NONZERO_PATTERN);//G_hat contains G - M*D_M_inv*G
+    MatMatMult(M,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&G_hat);//G_hat contains M*D_M_inv*G
+    MatAYPX(G_hat,-1.0,G,UNKNOWN_NONZERO_PATTERN);//G_hat contains G - M*D_M_inv*G
 
     //Creation of global matrices using MatCreateNest
-    Mat_array[3]=*C_hat;//Top right block of A_hat
+    Mat_array[3]=C_hat;//Top right block of A_hat
     Mat_array[2]=D;//Bottom left block of A_hat
-    Mat_array[1]=*G_hat;//Top right block of A_hat
+    Mat_array[1]=G_hat;//Top right block of A_hat
     Mat_array[0]=M;//Top left block of A_hat
 
     // Creation of A_hat 
     MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,A_hat);
 
     // Creation of Pmat
-    Mat_array[0]=*diag_2M;//Replace M by its diagonal to ease inversion
+    Mat_array[0]=diag_2M;//Replace M by its diagonal to ease inversion
     MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,Pmat);
 
     PetscPrintf(PETSC_COMM_WORLD,"... matrix transformed \n");    
 
-    MatDestroy(diag_2M);
-    MatDestroy(C_hat);
-    MatDestroy(G_hat);
+    MatDestroy(&diag_2M);
+    MatDestroy(&C_hat);
+    MatDestroy(&G_hat);
     MatDestroy(&D_M_inv_G);
     VecScatterDestroy(&scat);
     VecDestroy(&v_redistributed);
 }
 
-int getAhatRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * C_hat, Mat * G_hat, Mat * diag_2M )
+int getAhatRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat )
 {
     PetscPrintf(PETSC_COMM_WORLD,"Construction of the transform matrix by multiplication to the right by an upper triangular matrix U : Ahat = A_input*U ...\n");
 
     Vec v, v_redistributed;
     Mat D_M_inv_G, Mat_array[4];// D_M_inv = diag(M)^{-1}
+    Mat C_hat, G_hat, diag_2M;
     VecScatter scat;//tool to redistribute a vector on the processors
     IS is_to, is_from;
     PetscInt col_min, col_max;
@@ -287,10 +289,10 @@ int getAhatRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * C_hat, Mat * G_
     PetscCall( MatGetDiagonal(M,v) );
 
     //Creation of matrix 2*diag(M). Why not use MatCreateDiagonal ???
-    PetscCall( MatDuplicate(M, MAT_DO_NOT_COPY_VALUES, diag_2M) );
-    MatEliminateZeros(*diag_2M, PETSC_TRUE);
-    MatDiagonalSet(*diag_2M, v,  INSERT_VALUES);
-    MatScale(*diag_2M,2);//store 2*diagonal part of M
+    PetscCall( MatDuplicate(M, MAT_DO_NOT_COPY_VALUES, &diag_2M) );
+    MatEliminateZeros(diag_2M, PETSC_TRUE);
+    MatDiagonalSet(diag_2M, v,  INSERT_VALUES);
+    MatScale(diag_2M,2);//store 2*diagonal part of M
     PetscCall( VecReciprocal(v) );//Must first check that all the coefficients are non zero
     
     // Creation of D_M_inv_G = D_M_inv*G = diag(M)^{-1} * G
@@ -306,17 +308,17 @@ int getAhatRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * C_hat, Mat * G_
     MatDiagonalScale( D_M_inv_G, v_redistributed, NULL);//D_M_inv_G contains D_M_inv*G
 
     // Creation of C_hat
-    MatMatMult(D,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,C_hat);//C_hat contains D*D_M_inv*G
-    MatAYPX(*C_hat,-1.0,C,SUBSET_NONZERO_PATTERN);//C_hat contains C - D*D_M_inv*G
+    MatMatMult(D,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&C_hat);//C_hat contains D*D_M_inv*G
+    MatAYPX(C_hat,-1.0,C,SUBSET_NONZERO_PATTERN);//C_hat contains C - D*D_M_inv*G
 
     // Creation of G_hat
-    MatMatMult(M,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,G_hat);//G_hat contains M*D_M_inv*G
-    MatAYPX(*G_hat,-1.0,G,UNKNOWN_NONZERO_PATTERN);//G_hat contains G - M*D_M_inv*G
+    MatMatMult(M,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&G_hat);//G_hat contains M*D_M_inv*G
+    MatAYPX(G_hat,-1.0,G,UNKNOWN_NONZERO_PATTERN);//G_hat contains G - M*D_M_inv*G
 
     //Creation of global matrices using MatCreateNest
-    Mat_array[3]=*C_hat;//Top right block of A_hat
+    Mat_array[3]=C_hat;//Top right block of A_hat
     Mat_array[2]=D;//Bottom left block of A_hat
-    Mat_array[1]=*G_hat;//Top right block of A_hat
+    Mat_array[1]=G_hat;//Top right block of A_hat
     Mat_array[0]=M;//Top left block of A_hat
 
     // Creation of A_hat 
@@ -324,9 +326,9 @@ int getAhatRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * C_hat, Mat * G_
 
     PetscPrintf(PETSC_COMM_WORLD,"... matrix transformed \n");    
 
-    MatDestroy(diag_2M);
-    MatDestroy(C_hat);
-    MatDestroy(G_hat);
+    MatDestroy(&diag_2M);
+    MatDestroy(&C_hat);
+    MatDestroy(&G_hat);
     MatDestroy(&D_M_inv_G);
     VecScatterDestroy(&scat);
     VecDestroy(&v);
@@ -364,12 +366,13 @@ int getAhatRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * C_hat, Mat * G_
 /*                                 *G   2 diag(M)*                                           */
 /*                                                                                               */
 /*************************************************************************************************/
-int transformSystemLeft( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * D_hat, Mat * diag_2M, Vec * v, PetscBool useLowerTriangularTransform)
+int transformSystemLeft( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Vec * v, PetscBool useLowerTriangularTransform)
 {
     PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix A_input by multiplication to the left by a lower triangular matrix L : Ahat = L*A_input ...\n");
 
     Vec v_redistributed;
     Mat D_DM_inv, Mat_array[4];// D_DM_inv = D*diag(M)^{-1}
+    Mat C_hat, D_hat, diag_2M;
     VecScatter scat;//tool to redistribute a vector on the processors
     IS is_to, is_from;
     PetscInt col_min, col_max;
@@ -379,10 +382,10 @@ int transformSystemLeft( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Ma
     MatGetDiagonal(M,*v);
 
     //Creation of matrix 2*diag(M). Why not use MatCreateDiagonal ???
-    PetscCall( MatDuplicate(M, MAT_DO_NOT_COPY_VALUES, diag_2M) );
-    MatEliminateZeros(*diag_2M, PETSC_TRUE);
-    MatDiagonalSet(*diag_2M, *v,  INSERT_VALUES);
-    MatScale(*diag_2M,2);//store 2*diagonal part of M
+    PetscCall( MatDuplicate(M, MAT_DO_NOT_COPY_VALUES, &diag_2M) );
+    MatEliminateZeros(diag_2M, PETSC_TRUE);
+    MatDiagonalSet(diag_2M, *v,  INSERT_VALUES);
+    MatScale(diag_2M,2);//store 2*diagonal part of M
     PetscCall( VecReciprocal(*v) );//Must first check that all the coefficients are non zero
     
     // Creation of D_DM_inv = D*DM_inv = D*diag(M)^{-1}
@@ -398,25 +401,25 @@ int transformSystemLeft( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Ma
     MatDiagonalScale( D_DM_inv, NULL, v_redistributed);//D_DM_inv contains D_DM_inv
 
     // Creation of C_hat
-    MatMatMult(D_DM_inv,G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,C_hat);//C_hat contains D*D_M_inv*G
-    MatAYPX(*C_hat,-1.0,C,SUBSET_NONZERO_PATTERN);//C_hat contains C - D*D_M_inv*G
+    MatMatMult(D_DM_inv,G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&C_hat);//C_hat contains D*D_M_inv*G
+    MatAYPX(C_hat,-1.0,C,SUBSET_NONZERO_PATTERN);//C_hat contains C - D*D_M_inv*G
 
     // Creation of D_hat
-    MatMatMult(D_DM_inv,M,MAT_INITIAL_MATRIX,PETSC_DEFAULT,D_hat);//D_hat contains D*DM_inv*M
-    MatAYPX(*D_hat,-1.0,D,UNKNOWN_NONZERO_PATTERN);//D_hat contains D - D*DM_inv*M
+    MatMatMult(D_DM_inv,M,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&D_hat);//D_hat contains D*DM_inv*M
+    MatAYPX(D_hat,-1.0,D,UNKNOWN_NONZERO_PATTERN);//D_hat contains D - D*DM_inv*M
 
     //Creation of global matrices using MatCreateNest
     if( useLowerTriangularTransform )//Default, faster
     {
-        Mat_array[0]=*C_hat;//Top left block of A_hat
-        Mat_array[1]=*D_hat;//Top right block of A_hat
+        Mat_array[0]=C_hat;//Top left block of A_hat
+        Mat_array[1]=D_hat;//Top right block of A_hat
         Mat_array[3]=M;//Bottom right block of A_hat
         Mat_array[2]=G;//Bottom left block of A_hat
     }
     else
     {
-        Mat_array[3]=*C_hat;//Bottom right block of A_hat
-        Mat_array[2]=*D_hat;//Bottom left block of A_hat
+        Mat_array[3]=C_hat;//Bottom right block of A_hat
+        Mat_array[2]=D_hat;//Bottom left block of A_hat
         Mat_array[0]=M;//Top left block of A_hat
         Mat_array[1]=G;//Top right block of A_hat
     }
@@ -426,16 +429,16 @@ int transformSystemLeft( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Ma
 
     // Creation of Pmat
     if( useLowerTriangularTransform )
-        Mat_array[3]=*diag_2M;//Replace M by its diagonal to ease inversion
+        Mat_array[3]=diag_2M;//Replace M by its diagonal to ease inversion
     else
-        Mat_array[0]=*diag_2M;//Replace M by its diagonal to ease inversion
+        Mat_array[0]=diag_2M;//Replace M by its diagonal to ease inversion
     MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,Pmat);
 
     PetscPrintf(PETSC_COMM_WORLD,"... matrix transformed \n");    
 
-    MatDestroy(diag_2M);
-    MatDestroy(C_hat);
-    MatDestroy(D_hat);
+    MatDestroy(&diag_2M);
+    MatDestroy(&C_hat);
+    MatDestroy(&D_hat);
     MatDestroy(&D_DM_inv);
     VecScatterDestroy(&scat);
     VecDestroy(&v_redistributed);
@@ -736,12 +739,13 @@ int solveLeftTransformedSystemForXoutput( Mat Ahat, Mat Pmat, IS is_U, IS is_P, 
 /*                                 *Dhat          C_hat2 *                                       */
 /*                                                                                               */
 /*************************************************************************************************/
-int transformSystemLeftRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Mat * C_hat, Mat * G_hat, Mat * D_hat, Mat * C_hat2, Mat * diag_2M, Vec * v)
+int transformSystemLeftRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Vec * v)
 {
     PetscPrintf(PETSC_COMM_WORLD,"Transformation of the original system matrix A_input by multiplication to the left and the right by upper and lower triangular matrices U and L : Ahat = L*A_input*U ...\n");
 
     Vec v_redistributed;
     Mat D_M_inv_G, D_DM_inv, Mat_array[4];// D_M_inv = diag(M)^{-1}, D_DM_inv = D*diag(M)^{-1}
+    Mat C_hat, G_hat, D_hat, C_hat2, diag_2M;
     VecScatter scat;//tool to redistribute a vector on the processors
     IS is_to, is_from;
     PetscInt col_min, col_max;
@@ -751,10 +755,10 @@ int transformSystemLeftRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pma
     MatGetDiagonal(M,*v);
 
     //Creation of matrix 2*diag(M). Why not use MatCreateDiagonal ???
-    PetscCall( MatDuplicate(M, MAT_DO_NOT_COPY_VALUES, diag_2M) );
-    MatEliminateZeros(*diag_2M, PETSC_TRUE);
-    MatDiagonalSet(*diag_2M, *v,  INSERT_VALUES);
-    MatScale(*diag_2M,2);//store 2*diagonal part of M
+    PetscCall( MatDuplicate(M, MAT_DO_NOT_COPY_VALUES, &diag_2M) );
+    MatEliminateZeros(diag_2M, PETSC_TRUE);
+    MatDiagonalSet(diag_2M, *v,  INSERT_VALUES);
+    MatScale(diag_2M,2);//store 2*diagonal part of M
     PetscCall( VecReciprocal(*v) );//Must first check that all the coefficients are non zero
     
     // Creation of D_M_inv_G = D_M_inv*G = diag(M)^{-1} * G
@@ -772,42 +776,42 @@ int transformSystemLeftRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pma
     MatDiagonalScale( D_DM_inv, NULL, v_redistributed);//D_DM_inv contains D_DM_inv
 
     // Creation of C_hat
-    MatMatMult(D,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,C_hat);//C_hat contains D*D_M_inv*G
-    MatAYPX(*C_hat,-1.0,C,SUBSET_NONZERO_PATTERN);//C_hat contains C - D*D_M_inv*G
+    MatMatMult(D,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&C_hat);//C_hat contains D*D_M_inv*G
+    MatAYPX(C_hat,-1.0,C,SUBSET_NONZERO_PATTERN);//C_hat contains C - D*D_M_inv*G
 
     // Creation of G_hat
-    MatMatMult(M,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,G_hat);//G_hat contains M*D_M_inv*G
-    MatAYPX(*G_hat,-1.0,G,UNKNOWN_NONZERO_PATTERN);//G_hat contains G - M*D_M_inv*G
+    MatMatMult(M,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&G_hat);//G_hat contains M*D_M_inv*G
+    MatAYPX(G_hat,-1.0,G,UNKNOWN_NONZERO_PATTERN);//G_hat contains G - M*D_M_inv*G
 
     // Creation of D_hat
-    MatMatMult(D_DM_inv,M,MAT_INITIAL_MATRIX,PETSC_DEFAULT,D_hat);//D_hat contains D*DM_inv*M
-    MatAYPX(*D_hat,-1.0,D,UNKNOWN_NONZERO_PATTERN);//D_hat contains D - D*DM_inv*M
+    MatMatMult(D_DM_inv,M,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&D_hat);//D_hat contains D*DM_inv*M
+    MatAYPX(D_hat,-1.0,D,UNKNOWN_NONZERO_PATTERN);//D_hat contains D - D*DM_inv*M
 
     // Creation of C_hat2
-    MatMatMult(D_DM_inv, *G_hat,MAT_INITIAL_MATRIX,PETSC_DEFAULT,C_hat2);//C_hat2 contains D*D_M_inv*Ghat
-    MatAYPX(*C_hat2,-1.0,*C_hat,SUBSET_NONZERO_PATTERN);//C_hat2 contains Chat - D*D_M_inv*Ghat
+    MatMatMult(D_DM_inv, G_hat,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&C_hat2);//C_hat2 contains D*D_M_inv*Ghat
+    MatAYPX(C_hat2,-1.0,C_hat,SUBSET_NONZERO_PATTERN);//C_hat2 contains Chat - D*D_M_inv*Ghat
 
     //Creation of global matrices using MatCreateNest
-    Mat_array[3]=*C_hat2;//Bottom right block of A_hat
-    Mat_array[2]=*D_hat;//Bottom left block of A_hat
-    Mat_array[1]=*G_hat;//Top right block of A_hat
+    Mat_array[3]=C_hat2;//Bottom right block of A_hat
+    Mat_array[2]=D_hat;//Bottom left block of A_hat
+    Mat_array[1]=G_hat;//Top right block of A_hat
     Mat_array[0]=M;//Top left block of A_hat
 
     // Creation of A_hat
     MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,A_hat);
 
     // Creation of Pmat
-    Mat_array[0]=*diag_2M;//Replace M by its diagonal to ease inversion
-    Mat_array[3]=*C_hat;//Bottom right block of Pmat
+    Mat_array[0]=diag_2M;//Replace M by its diagonal to ease inversion
+    Mat_array[3]=C_hat;//Bottom right block of Pmat
     MatCreateNest(PETSC_COMM_WORLD,2,NULL,2,NULL,Mat_array,Pmat);
 
     PetscPrintf(PETSC_COMM_WORLD,"... matrix transformed \n");    
 
-    MatDestroy(diag_2M);
-    MatDestroy(C_hat);
-    MatDestroy(C_hat2);
-    MatDestroy(G_hat);
-    MatDestroy(D_hat);
+    MatDestroy(&diag_2M);
+    MatDestroy(&C_hat);
+    MatDestroy(&C_hat2);
+    MatDestroy(&G_hat);
+    MatDestroy(&D_hat);
     MatDestroy(&D_M_inv_G);
     VecScatterDestroy(&scat);
     VecDestroy(&v_redistributed);

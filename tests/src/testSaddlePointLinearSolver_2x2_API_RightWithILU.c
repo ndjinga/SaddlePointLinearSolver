@@ -49,7 +49,7 @@ int main( int argc, char **args ){
 	MPI_Comm_size(PETSC_COMM_WORLD,&size);
 	PetscInt n_u, n_p, n;//Total number of velocity and pressure lines. n = n_u+ n_p
 	char file[1][PETSC_MAX_PATH_LEN], mat_type[256]; // File to load, matrix type
-	Mat A_input, A_hat, C_hat, G_hat, diag_2M;
+	Mat A_input, A_hat;
 	Mat M, G, D, C;
 	IS is_U,is_P;
 	Vec b_input, X_anal, X_output, X_u, X_p;
@@ -77,7 +77,7 @@ int main( int argc, char **args ){
 
 	PetscLogStageRegister("Résolution du système linéaire", &linear_system_stage);//Instrumentation : début de la résolution du second membre
 	PetscLogStagePush( linear_system_stage);//Instrumentation
-    getAhatRight( M, G, D, C, &A_hat, &C_hat, &G_hat, &diag_2M);
+    getAhatRight( M, G, D, C, &A_hat);
 
 //##### Calling KSP solver and monitor convergence
 	VecDuplicate(b_input,&X_output);// X_output will store the numerical solution of the linear system

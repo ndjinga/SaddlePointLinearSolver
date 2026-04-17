@@ -87,7 +87,7 @@ int main( int argc, char **args ){
 	PetscLogStageRegister("Résolution du système linéaire", &linear_system_stage);//Instrumentation : début de la résolution du second membre
 	PetscLogStagePush( linear_system_stage);//Instrumentation
 
-	transformSystemLeftRight(M,G,D,C,&A_hat,&Pmat, &C_hat, &G_hat, &D_hat, &C_hat2, &diag_2M,&v);
+	transformSystemLeftRight(M,G,D,C,&A_hat,&Pmat,&v);
 
     getbhatFrombinput( D, v, b_input, &b_hat, is_U, is_P, useLowerTriangularTransform);
 

@@ -48,7 +48,7 @@ int main( int argc, char **args ){
 	MPI_Comm_size(PETSC_COMM_WORLD,&size);
 	PetscInt n_u, n_p, n;//Total number of velocity and pressure lines. n = n_u+ n_p
 	char file[1][PETSC_MAX_PATH_LEN], mat_type[256]; // File to load, matrix type
-	Mat A_input, A_hat, Pmat, C_hat, G_hat, diag_2M;
+	Mat A_input, A_hat, Pmat;
 	Mat M, G, D, C;
 	IS is_U,is_P;
 	Vec b_input, X_hat, X_anal;
@@ -74,14 +74,12 @@ int main( int argc, char **args ){
 
 	buildRHSVector( A_input, n_u, n_p, &X_anal, &b_input);
 
-	VecDuplicate(b_input,&X_hat);// X_hat will store the numerical solution of the transformed system
-
 	PetscLogStageRegister("Résolution du système linéaire", &linear_system_stage);//Instrumentation : début de la résolution du second membre
 	PetscLogStagePush( linear_system_stage);//Instrumentation
-	transformSystemRight(M,G,D,C,&A_hat,&Pmat, &C_hat, &G_hat, &diag_2M,&v);
+	transformSystemRight(M,G,D,C,&A_hat,&Pmat, &v);
 
 //##### Calling KSP solver and monitor convergence
-
+	VecDuplicate(b_input,&X_hat);// X_hat will store the numerical solution of the transformed system
     solveRightTransformedSystemForXhat( A_hat, Pmat, is_U, is_P, b_input, &X_hat, rtol,PETSC_DEFAULT,PETSC_DEFAULT, PETSC_DEFAULT, &residu);
 
 	Vec X_output;
