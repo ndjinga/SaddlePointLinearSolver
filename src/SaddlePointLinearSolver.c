@@ -574,7 +574,7 @@ int solveRightTransformedSystemForXhat( Mat A_hat, Mat Pmat, IS is_U, IS is_P, V
 
     PetscCall( KSPSetFromOptions(ksp) );
     PetscCall( KSPSetUp(ksp) );
-    PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system A_hat*X_hat = b_input...\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system A_hat*X_hat = b_input with a fieldsplit preconditioner...\n");
 
     PetscCall( KSPSolve(ksp,b_input, *X_hat) );
 
@@ -588,7 +588,7 @@ int solveRightTransformedSystemForXhat( Mat A_hat, Mat Pmat, IS is_U, IS is_P, V
 }
 
 //##### Solve the right transformed system for Xhat
-int solveRightILUTransformedSystemForXhat( Mat A_input, Mat A_hat, Mat M, Mat G, IS is_U, IS is_P, Vec b_input, Vec * X_hat, PC pctransform, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double *residu)
+int solveRightILUTransformedSystemForXoutput( Mat A_input, Mat A_hat, Mat M, Mat G, IS is_U, IS is_P, Vec b_input, Vec * X_output, PC pctransform, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double *residu)
 {
     KSP ksp;
     KSPType ksp_type = KSPFBCGS;//BCGS seems very efficient
@@ -646,9 +646,9 @@ int solveRightILUTransformedSystemForXhat( Mat A_input, Mat A_hat, Mat M, Mat G,
     PCCompositeAddPC( pc, pcfieldsplit);
     PetscCall( KSPSetFromOptions(ksp) );
     PetscCall( KSPSetUp(ksp) );
-    PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system A_hat*X_hat = b_input...\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system A_hat*X_output = b_input with a composite preconditioner...\n");
 
-    PetscCall( KSPSolve(ksp,b_input, *X_hat) );
+    PetscCall( KSPSolve(ksp,b_input, *X_output) );
 
     //Extract and display informations about the convergence
     displayPCCompositeIterationNumbers( &ksp, residu);
@@ -700,7 +700,7 @@ int solveLeftTransformedSystemForXoutput( Mat Ahat, Mat Pmat, IS is_U, IS is_P, 
 
     PetscCall( KSPSetFromOptions(ksp) );
     PetscCall( KSPSetUp(ksp) );
-    PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system A_hat*X_output = b_hat...\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system A_input*X_output = b_hat with a fieldsplit preconditioner...\n");
 
     PetscCall( KSPSolve(ksp,b_hat, *X_output) );
 
@@ -846,7 +846,7 @@ int solveLeftRightTransformedSystemForXhat( Mat A_hat, Mat Pmat, IS is_U, IS is_
 
     PetscCall( KSPSetFromOptions(ksp) );
     PetscCall( KSPSetUp(ksp) );
-    PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system A_hat*X_hat = b_hat ...\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system A_hat*X_hat = b_hat with a fieldsplit preconditioner ...\n");
 
     PetscCall( KSPSolve(ksp,b_hat, *X_hat) );
 
@@ -868,20 +868,22 @@ int displayPCFieldSplitIterationNumbers(KSP *ksp, double *residu)
     KSPConvergedReason reason;
     PetscReal rtol, abstol, dtol;
     PetscInt numberMaxOfIter;
+    PetscBool isPCFIELDSPLIT;
     
     KSPGetConvergedReason(*ksp,&reason);
     KSPGetResidualNorm( *ksp, residu);
     KSPGetTolerances( *ksp, &rtol, &abstol, &dtol, &numberMaxOfIter);
     KSPGetPC(*ksp,&pc);
     KSPGetType( *ksp, &ksp_type);
-    PetscCheck( ksp_type == PCFIELDSPLIT, MPI_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Display function displayPCFieldSplitIterationNumbers works for PCFIELDSPLIT preconditioners, pc_type = %s", pc_type);
+    PCGetType( pc, &pc_type);
+    PetscCall(PetscStrcmp(pc_type ,PCFIELDSPLIT, &isPCFIELDSPLIT));
+    PetscCheck( isPCFIELDSPLIT, MPI_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Display function displayPCFieldSplitIterationNumbers works for PCFIELDSPLIT preconditioners, pc_type = %s", pc_type);
     PetscCall( PCFieldSplitGetSubKSP( pc, &nblocks, &kspArray) );
     PetscCheck( nblocks == 2, MPI_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Display function displayPCFieldSplitIterationNumbers works for 2 blocks in PCFIELDSPLIT preconditioners, nblocks = %d", nblocks);
     KSPGetType( kspArray[0], &ksp_type0);
     KSPGetType( kspArray[1], &ksp_type1);
     KSPGetPC(kspArray[0],&pc1);
     KSPGetPC(kspArray[1],&pc2);
-    PCGetType( pc, &pc_type);
     PCGetType( pc1, &pc_type0);
     PCGetType( pc2, &pc_type1);
     KSPGetIterationNumber(*ksp,&iter);
@@ -935,6 +937,7 @@ int displayPCCompositeIterationNumbers(KSP *ksp, double *residu)
     KSPConvergedReason reason;
     PetscReal rtol, abstol, dtol;
     PetscInt numberMaxOfIter;
+    PetscBool isPCFIELDSPLIT;
     
     KSPGetConvergedReason(*ksp,&reason);
     KSPGetResidualNorm( *ksp, residu);
@@ -959,8 +962,14 @@ int displayPCCompositeIterationNumbers(KSP *ksp, double *residu)
     {
         PetscPrintf(PETSC_COMM_WORLD, "\n############ : monitoring the convergence of the linear solver with %d (composed) preconditioner(s)\n", nprecs);
         PetscPrintf(PETSC_COMM_WORLD, "Linear solver name: %s, preconditioner %s, %d iterations \n", ksp_type, pc_type, iter);
-        PetscPrintf(PETSC_COMM_WORLD, "    preconditioner 0 name : %s \n", pc_type0);
-        PetscPrintf(PETSC_COMM_WORLD, "    preconditioner 1 name : %s \n", pc_type1);
+        PetscPrintf(PETSC_COMM_WORLD, "    composite preconditioner 0 name : %s \n", pc_type0);
+        PetscCall(PetscStrcmp(pc_type0 ,PCFIELDSPLIT, &isPCFIELDSPLIT));
+        if( isPCFIELDSPLIT )
+          displayPCFieldSplitSubTypes(pc1);
+        PetscPrintf(PETSC_COMM_WORLD, "    composite preconditioner 1 name : %s \n", pc_type1);
+        PetscCall(PetscStrcmp(pc_type1 ,PCFIELDSPLIT, &isPCFIELDSPLIT));
+        if( isPCFIELDSPLIT )
+          displayPCFieldSplitSubTypes( pc2);
     }
     else
         PetscPrintf(PETSC_COMM_WORLD, "!!!!!!!!!!!!!!!!!! Linear system diverged  after %d iterations !!!!!!!!!!!!!!\n", iter);
@@ -993,4 +1002,31 @@ int displayPCCompositeIterationNumbers(KSP *ksp, double *residu)
             else
                 PetscPrintf(PETSC_COMM_WORLD, "PETSc divergence reason %d \n" , reason);
         }
+}
+
+int displayPCFieldSplitSubTypes(PC pc)
+{
+    KSP *kspArray;
+    PC pc1, pc2;
+    KSPType ksp_type0,  ksp_type1;
+    PCType pc_type, pc_type0, pc_type1;
+    int nblocks, iter, iter1, iter2;//iter = main iteration number, iter1 and iter2 are sub iteration numbers
+    PetscBool isPCFIELDSPLIT;
+
+    PCGetType( pc, &pc_type);
+    PetscCall(PetscStrcmp(pc_type ,PCFIELDSPLIT, &isPCFIELDSPLIT));
+    PetscCheck( isPCFIELDSPLIT, MPI_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Display function displayPCFieldSplitSubTypes works for PCFIELDSPLIT preconditioners, pc_type = %s", pc_type);
+    PetscCall( PCFieldSplitGetSubKSP( pc, &nblocks, &kspArray) );
+    PetscCheck( nblocks == 2, MPI_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Display function displayPCFieldSplitSubTypes works for 2 blocks in PCFIELDSPLIT preconditioners, nblocks = %d", nblocks);
+    KSPGetType( kspArray[0], &ksp_type0);
+    KSPGetType( kspArray[1], &ksp_type1);
+    KSPGetPC(kspArray[0],&pc1);
+    KSPGetPC(kspArray[1],&pc2);
+    PCGetType( pc1, &pc_type0);
+    PCGetType( pc2, &pc_type1);
+    KSPGetIterationNumber(kspArray[0],&iter1);
+    KSPGetIterationNumber(kspArray[1],&iter2);
+
+    PetscPrintf(PETSC_COMM_WORLD, "       fieldsplit sub solver 1 name : %s, preconditioner %s, %d iterations \n", ksp_type0, pc_type0, iter1);
+    PetscPrintf(PETSC_COMM_WORLD, "       fieldsplit sub solver 2 name : %s, preconditioner %s, %d iterations \n", ksp_type1, pc_type1, iter2);
 }

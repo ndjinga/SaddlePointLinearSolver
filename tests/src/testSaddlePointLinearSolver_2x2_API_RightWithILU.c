@@ -52,7 +52,7 @@ int main( int argc, char **args ){
 	Mat A_input, A_hat, C_hat, G_hat, diag_2M;
 	Mat M, G, D, C;
 	IS is_U,is_P;
-	Vec b_input, X_hat, X_anal;
+	Vec b_input, X_anal, X_output, X_u, X_p;
 	double error,  rtol=1e-7, residu;
     PC pcshell;
 
@@ -75,21 +75,17 @@ int main( int argc, char **args ){
 
 	buildRHSVector( A_input, n_u, n_p, &X_anal, &b_input);
 
-	VecDuplicate(b_input,&X_hat);// X_hat will store the numerical solution of the transformed system
-
 	PetscLogStageRegister("Résolution du système linéaire", &linear_system_stage);//Instrumentation : début de la résolution du second membre
 	PetscLogStagePush( linear_system_stage);//Instrumentation
     getAhatRight( M, G, D, C, &A_hat, &C_hat, &G_hat, &diag_2M);
 
 //##### Calling KSP solver and monitor convergence
-    solveRightILUTransformedSystemForXhat( A_input, A_hat, M, G, is_U, is_P, b_input, &X_hat, pcshell, rtol,PETSC_DEFAULT,PETSC_DEFAULT, PETSC_DEFAULT, &residu);
+	VecDuplicate(b_input,&X_output);// X_output will store the numerical solution of the linear system
+    solveRightILUTransformedSystemForXoutput( A_input, A_hat, M, G, is_U, is_P, b_input, &X_output, pcshell, rtol,PETSC_DEFAULT,PETSC_DEFAULT, PETSC_DEFAULT, &residu);
 
-/*
-	Vec X_output;
-	Vec X_p;//Pressure components of the main unknown
-	Vec X_u;//Velocity components of the transformed unknown
 
-	getSolutionFromXhat(G, v, X_hat, &X_output, &X_u, &X_p, is_U, is_P);
+	PetscCall( VecGetSubVector( X_output, is_P, &X_p) );
+	PetscCall( VecGetSubVector( X_output, is_U, &X_u) );
 
 	PetscLogStagePop();//Instrumentation : fin de la résolution du second membre
 	PetscLogStageGetPerfInfo( linear_system_stage, &info_linear_system_stage);
@@ -97,21 +93,20 @@ int main( int argc, char **args ){
 	
 	error = computeErrorAndCheck( X_anal, X_output, is_U, is_P, X_u, X_p);	
 	PetscCheck( error < 1e6*residu, PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED, "Linear system did not return accurate solution. Error is too high compared to residual (e>1e6*r) : e=%e, r=%e\n", error, residu);
-*/	
+	
 //##### Cleaning of the memory
 	MatDestroy(&A_input);
-	//MatDestroy(&A_hat);
+	MatDestroy(&A_hat);
 	MatDestroy(&M);
 	MatDestroy(&D);	
 	MatDestroy(&G);
 	MatDestroy(&C);
 
 	VecDestroy(&b_input);
-	VecDestroy(&X_hat);
 	VecDestroy(&X_anal);
-	//VecDestroy(&X_u);
-	//VecDestroy(&X_p);
-	//VecDestroy(&X_output);
+	VecDestroy(&X_u);
+	VecDestroy(&X_p);
+	VecDestroy(&X_output);
 
 	ISDestroy(&is_U);
 	ISDestroy(&is_P);
