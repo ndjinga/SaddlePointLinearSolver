@@ -567,8 +567,8 @@ int solveRightILUTransformedSystemForXhat( Mat A_input, Mat M, Mat G, IS is_U, I
     KSPGetPC(kspArray[0], &pcfieldsplit1);
     KSPGetPC(kspArray[1], &pcfieldsplit2);
 
-    PCSetType( pcfieldsplit1, PCBJACOBI);
-    PCSetType( pcfieldsplit2, PCNONE);
+    PCSetType( pcfieldsplit1, PCJACOBI);
+    PCSetType( pcfieldsplit2, PCGAMG);
     PetscCall( PCSetUp( pcfieldsplit) );
 
 //### The upper triangular preconditioner corresponding to the triangular transform ####
@@ -878,7 +878,7 @@ int displayPCCompositeIterationNumbers(KSP *ksp, double *residu)
     KSP *kspArray;
     PC pc, pc1, pc2;
     KSPType ksp_type0, ksp_type1,  ksp_type;
-    PCType pc_type, pc_type0, pc_type1;
+    PCType pc_type, pc_type0="none", pc_type1="none";
     int nprecs, iter, iter1, iter2;//iter = main iteration number, iter1 and iter2 are sub iteration numbers
     KSPConvergedReason reason;
     PetscReal rtol, abstol, dtol;
@@ -893,20 +893,22 @@ int displayPCCompositeIterationNumbers(KSP *ksp, double *residu)
     PetscCall(PetscStrcmp(pc_type ,PCCOMPOSITE, &isPCComposite));
     PetscCheck( isPCComposite, MPI_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Display function  displayPCCompositeIterationNumbers works for PCCOMPOSITE preconditioners, pc_type = %s, PCCOMPOSITE = %s", pc_type, PCCOMPOSITE);
     PCCompositeGetNumberPC( pc, &nprecs);
-    PetscCheck( nprecs == 2, MPI_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Display function displayPCCompositeIterationNumbers works for 2 sub preconditioners, nprecs = %d", nprecs);
+    PetscCheck( nprecs >= 1, MPI_COMM_WORLD, PETSC_ERR_ARG_OUTOFRANGE, "Display function displayPCCompositeIterationNumbers works for at least 1 sub preconditioners, nprecs = %d", nprecs);
     PCCompositeGetPC( pc, 0, &pc1);
-    PCCompositeGetPC( pc, 1, &pc2);
     KSPGetType( *ksp, &ksp_type);
     PCGetType( pc1, &pc_type0);
-    PCGetType( pc2, &pc_type1);
     KSPGetIterationNumber(*ksp,&iter);
-
+    if(nprecs >= 2)
+    {
+        PCCompositeGetPC( pc, 1, &pc2);
+        PCGetType( pc2, &pc_type1);        
+    }
     if (reason>0)
     {
-        PetscPrintf(PETSC_COMM_WORLD, "\n############ : monitoring the convergence of the linear solver\n");
+        PetscPrintf(PETSC_COMM_WORLD, "\n############ : monitoring the convergence of the linear solver with %d (composed) preconditioner(s)\n", nprecs);
         PetscPrintf(PETSC_COMM_WORLD, "Linear solver name: %s, preconditioner %s, %d iterations \n", ksp_type, pc_type, iter);
-        PetscPrintf(PETSC_COMM_WORLD, "    sub preconditioner 0 name : %s \n", pc_type0);
-        PetscPrintf(PETSC_COMM_WORLD, "    sub preconditioner 1 name : %s \n", pc_type1);
+        PetscPrintf(PETSC_COMM_WORLD, "    preconditioner 0 name : %s \n", pc_type0);
+        PetscPrintf(PETSC_COMM_WORLD, "    preconditioner 1 name : %s \n", pc_type1);
     }
     else
         PetscPrintf(PETSC_COMM_WORLD, "!!!!!!!!!!!!!!!!!! Linear system diverged  after %d iterations !!!!!!!!!!!!!!\n", iter);
@@ -929,6 +931,9 @@ int displayPCCompositeIterationNumbers(KSP *ksp, double *residu)
             break;
         case -5:
             PetscPrintf(PETSC_COMM_WORLD, "!!!!!!! Generic breakdown of the linear solver (Could be due to a singular matrix or preconditioner)!!!!!! \n");
+            break;
+        case -9:
+            PetscPrintf(PETSC_COMM_WORLD, "!!!!!!! Nan or Inf in the linear solver!!!!!! \n");
             break;
         default:
             if (reason>0)
