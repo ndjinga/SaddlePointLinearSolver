@@ -645,11 +645,60 @@ int solveRightILUTransformedSystemForXoutput( Mat A_input, Mat A_hat, Mat M, Mat
     PCShellSetDestroy(pctransform,destroyRight);               
 
 //#### Setting the KSP solver ###//
-    PCCompositeAddPC( pc, pctransform);
     PCCompositeAddPC( pc, pcfieldsplit);
+    PCCompositeAddPC( pc, pctransform);
     PetscCall( KSPSetFromOptions(ksp) );
     PetscCall( KSPSetUp(ksp) );
     PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system A_hat*X_output = b_input with a composite preconditioner...\n");
+
+    PetscCall( KSPSolve(ksp,b_input, *X_output) );
+
+    //Extract and display informations about the convergence
+    displayPCCompositeIterationNumbers( &ksp, residu);
+    
+    KSPDestroy(&ksp);
+    PetscFree(kspArray);
+
+    return PETSC_SUCCESS;
+}
+
+//##### Use Schur complement factorisation to solve the system for Xoutput
+int solveSchurSystemForXoutput( Mat A_input, Mat C_hat, Mat M, IS is_U, IS is_P, Vec b_input, Vec * X_output, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double *residu)
+{
+    KSP ksp;
+    KSPType ksp_type = KSPFBCGS;//BCGS seems very efficient
+    PC pc;
+
+    PetscPrintf(PETSC_COMM_WORLD,"Setting the main solver ...\n");
+    KSPCreate(PETSC_COMM_WORLD,&ksp);
+    KSPSetType(ksp, ksp_type);
+    PetscCall( KSPSetOperators(ksp,A_input,A_input) );
+    KSPSetTolerances(ksp,rtol, abstol, dtol, numberMaxOfIter);
+    KSPGetPC(ksp,&pc);
+    PetscPrintf(PETSC_COMM_WORLD,"Setting the preconditioner ...\n");
+    PCSetType(pc,PCFIELDSPLIT);
+    PCFieldSplitSetType( pc, PC_COMPOSITE_SCHUR);
+
+//#### The PCFIELDSPLIT preconditioner (based on GAMG and ILU) ###//
+    KSP *kspArray;
+    PC pcfieldsplit1, pcfieldsplit2;
+    Mat schurMat, schurMatPrec;
+
+    PCFieldSplitSetIS(pc, "0",is_U);//The order here matters a lot between this line and the next
+    PCFieldSplitSetIS(pc, "1",is_P);//The order here matters a lot between this line and the previous
+    PCFieldSplitSetSchurPre(pc,PC_FIELDSPLIT_SCHUR_PRE_USER,C_hat);//or PC_FIELDSPLIT_SCHUR_PRE_SELFP
+    PetscCall( PCSetUp( pc) );
+    PCFieldSplitSchurGetSubKSP( pc, NULL, &kspArray);
+    KSPSetType( kspArray[0], KSPPREONLY);
+    KSPSetType( kspArray[1], KSPPREONLY);
+    KSPGetPC(kspArray[0], &pcfieldsplit1);
+    KSPGetPC(kspArray[1], &pcfieldsplit2);
+
+    //PetscCall( PCSetOperators(pcfieldsplit,M,M) );
+    PCSetType( pcfieldsplit1, PCBJACOBI);
+    KSPGetOperators(kspArray[1], &schurMat, &schurMatPrec);
+    PetscCall( KSPSetOperators(kspArray[1],schurMat,C_hat) );
+    PCSetType( pcfieldsplit2, PCGAMG);
 
     PetscCall( KSPSolve(ksp,b_input, *X_output) );
 
