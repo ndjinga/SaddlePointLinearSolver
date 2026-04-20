@@ -54,7 +54,6 @@ int main( int argc, char **args ){
 	IS is_U,is_P;
 	Vec b_input, X_anal, X_output, X_u, X_p;
 	double error,  rtol=1e-7, residu;
-    PC pcshell;
 
     /* Minimum profiling for cpu time */
 	PetscLogStage  linear_system_stage;
@@ -81,7 +80,7 @@ int main( int argc, char **args ){
 
 //##### Calling KSP solver and monitor convergence
 	VecDuplicate(b_input,&X_output);// X_output will store the numerical solution of the linear system
-    solveRightILUTransformedSystemForXoutput( A_input, A_hat, M, G, is_U, is_P, b_input, &X_output, pcshell, rtol,PETSC_DEFAULT,PETSC_DEFAULT, PETSC_DEFAULT, &residu);
+    solveRightILUTransformedSystemForXoutput( A_input, A_hat, M, G, is_U, is_P, b_input, &X_output, rtol,PETSC_DEFAULT,PETSC_DEFAULT, PETSC_DEFAULT, &residu);
 
 
 	PetscCall( VecGetSubVector( X_output, is_P, &X_p) );

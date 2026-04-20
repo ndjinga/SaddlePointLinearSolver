@@ -335,6 +335,51 @@ int getAhatRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat )
     VecDestroy(&v_redistributed);
 }
 
+int getChatRight( Mat M, Mat G, Mat D, Mat C, Mat * C_hat )
+{
+    PetscPrintf(PETSC_COMM_WORLD,"Construction of the transform matrix by multiplication to the right by an upper triangular matrix U : Ahat = A_input*U ...\n");
+
+    Vec v, v_redistributed;
+    Mat D_M_inv_G;// D_M_inv = diag(M)^{-1}
+    Mat  diag_2M;
+    VecScatter scat;//tool to redistribute a vector on the processors
+    IS is_to, is_from;
+    PetscInt col_min, col_max;
+
+    //Extraction of the diagonal of M
+    PetscCall( MatCreateVecs(M,NULL,&v) );//v has the size of M
+    PetscCall( MatGetDiagonal(M,v) );
+
+    //Creation of matrix 2*diag(M). Why not use MatCreateDiagonal ???
+    PetscCall( MatDuplicate(M, MAT_DO_NOT_COPY_VALUES, &diag_2M) );
+    MatEliminateZeros(diag_2M, PETSC_TRUE);
+    MatDiagonalSet(diag_2M, v,  INSERT_VALUES);
+    MatScale(diag_2M,2);//store 2*diagonal part of M
+    PetscCall( VecReciprocal(v) );//Must first check that all the coefficients are non zero
+    
+    // Creation of D_M_inv_G = D_M_inv*G = diag(M)^{-1} * G
+    PetscCall( MatDuplicate(G,MAT_COPY_VALUES,&D_M_inv_G) );//D_M_inv_G contains G
+    PetscCall( MatCreateVecs(D_M_inv_G,NULL,&v_redistributed) );//v_redistributed has the parallel distribution of D_M_inv_G
+    VecGetOwnershipRange(v,&col_min,&col_max);
+    ISCreateStride(PETSC_COMM_WORLD, col_max-col_min, col_min, 1, &is_from);
+    VecGetOwnershipRange(v_redistributed,&col_min,&col_max);
+    ISCreateStride(PETSC_COMM_WORLD, col_max-col_min, col_min, 1, &is_to);
+    VecScatterCreate(v,is_from,v_redistributed,is_to,&scat);
+    VecScatterBegin(scat, v, v_redistributed,INSERT_VALUES,SCATTER_FORWARD);
+    VecScatterEnd(  scat, v, v_redistributed,INSERT_VALUES,SCATTER_FORWARD);
+    MatDiagonalScale( D_M_inv_G, v_redistributed, NULL);//D_M_inv_G contains D_M_inv*G
+
+    // Creation of C_hat
+    MatMatMult(D,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&C_hat);//C_hat contains D*D_M_inv*G
+    MatAYPX(C_hat,-1.0,C,SUBSET_NONZERO_PATTERN);//C_hat contains C - D*D_M_inv*G
+
+    MatDestroy(&diag_2M);
+    MatDestroy(&D_M_inv_G);
+    VecScatterDestroy(&scat);
+    VecDestroy(&v);
+    VecDestroy(&v_redistributed);
+}
+
 //##### Application of the transformation A -> A_hat (and b -> b_hat) by multiplication to the left by a lower triangular matrix
 //## Vector v must be deleted by caller
 /*                                 *M   G*                                                       */
@@ -591,7 +636,7 @@ int solveRightTransformedSystemForXhat( Mat A_hat, Mat Pmat, IS is_U, IS is_P, V
 }
 
 //##### Solve the right transformed system for Xhat
-int solveRightILUTransformedSystemForXoutput( Mat A_input, Mat A_hat, Mat M, Mat G, IS is_U, IS is_P, Vec b_input, Vec * X_output, PC pctransform, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double *residu)
+int solveRightILUTransformedSystemForXoutput( Mat A_input, Mat A_hat, Mat M, Mat G, IS is_U, IS is_P, Vec b_input, Vec * X_output, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double *residu)
 {
     KSP ksp;
     KSPType ksp_type = KSPFBCGS;//BCGS seems very efficient
@@ -628,7 +673,7 @@ int solveRightILUTransformedSystemForXoutput( Mat A_input, Mat A_hat, Mat M, Mat
     PCSetType( pcfieldsplit2, PCGAMG);
 
 //### The upper triangular preconditioner corresponding to the triangular transform ####
-    //PC pctransform;
+    PC pctransform;
     ApplicationCtx2x2 ctx = 
     {
       .is_U = is_U,              /* indices of velocity lines */

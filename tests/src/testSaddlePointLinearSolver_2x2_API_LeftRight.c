@@ -55,7 +55,7 @@ int main( int argc, char **args ){
 	MPI_Comm_size(PETSC_COMM_WORLD,&size);
 	PetscInt n_u, n_p, n;//Total number of velocity and pressure lines. n = n_u+ n_p
 	char file[1][PETSC_MAX_PATH_LEN], mat_type[256]; // File to load, matrix type
-	Mat A_input, A_hat, Pmat, C_hat, G_hat, D_hat, C_hat2, diag_2M;
+	Mat A_input, A_hat, Pmat;
 	Mat M, G, D, C;
 	IS is_U,is_P;
 	Vec b_input, b_hat, X_hat, X_anal;
