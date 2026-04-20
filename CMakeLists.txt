@@ -54,6 +54,7 @@ if( SaddlePointLinearSolver_WITH_TESTS )
  tests/src/testSaddlePointLinearSolver_2x2_APIRightWithILU.c
  tests/src/testSaddlePointLinearSolver_2x2_APILeft.c
  tests/src/testSaddlePointLinearSolver_2x2_APILeftRight.c
+ tests/src/testSaddlePointLinearSolver_2x2_APISchur.c
  tests/src/testSaddlePointLinearSolver_2x2_par.c
  tests/src/testSaddlePointLinearSolver_2x2_par_instrumentation.c
  #tests/src/testSaddlePointLinearSolver_nxn_par.c
@@ -67,6 +68,7 @@ if( SaddlePointLinearSolver_WITH_TESTS )
  add_executable(testSaddlePointLinearSolver_2x2_APIRightWithILU          tests/src/testSaddlePointLinearSolver_2x2_API_RightWithILU.c)
  add_executable(testSaddlePointLinearSolver_2x2_APILeft                  tests/src/testSaddlePointLinearSolver_2x2_API_Left.c)
  add_executable(testSaddlePointLinearSolver_2x2_APILeftRight             tests/src/testSaddlePointLinearSolver_2x2_API_LeftRight.c)
+ add_executable(testSaddlePointLinearSolver_2x2_APISchur             tests/src/testSaddlePointLinearSolver_2x2_API_Schur.c)
  add_executable(testSaddlePointLinearSolver_2x2_par                      tests/src/testSaddlePointLinearSolver_2x2_par.c)
  add_executable(testSaddlePointLinearSolver_2x2_par_instrumentation      tests/src/testSaddlePointLinearSolver_2x2_par_instrumentation.c)
  target_include_directories(testSaddlePointLinearSolver_initial_seq                  PRIVATE ${PETSC_INCLUDES} )
@@ -75,6 +77,7 @@ if( SaddlePointLinearSolver_WITH_TESTS )
  target_include_directories(testSaddlePointLinearSolver_2x2_APIRightWithILU          PRIVATE ${PETSC_INCLUDES}  ${MY_HEADERS})
  target_include_directories(testSaddlePointLinearSolver_2x2_APILeft                  PRIVATE ${PETSC_INCLUDES}  ${MY_HEADERS})
  target_include_directories(testSaddlePointLinearSolver_2x2_APILeftRight             PRIVATE ${PETSC_INCLUDES}  ${MY_HEADERS})
+ target_include_directories(testSaddlePointLinearSolver_2x2_APISchur                 PRIVATE ${PETSC_INCLUDES}  ${MY_HEADERS})
  target_include_directories(testSaddlePointLinearSolver_2x2_par                      PRIVATE ${PETSC_INCLUDES} )
  target_include_directories(testSaddlePointLinearSolver_2x2_par_instrumentation      PRIVATE ${PETSC_INCLUDES} )
 
@@ -82,6 +85,7 @@ if( SaddlePointLinearSolver_WITH_TESTS )
  target_link_libraries(testSaddlePointLinearSolver_2x2_APIRightWithILU    SaddlePointLinearSolverLib )
  target_link_libraries(testSaddlePointLinearSolver_2x2_APILeft            SaddlePointLinearSolverLib )
  target_link_libraries(testSaddlePointLinearSolver_2x2_APILeftRight       SaddlePointLinearSolverLib )
+ target_link_libraries(testSaddlePointLinearSolver_2x2_APISchur           SaddlePointLinearSolverLib )
 
  target_link_libraries(testSaddlePointLinearSolver_initial_seq                  ${PETSC_LIBRARIES} ${MPI_HOME}/lib/libmpi.so)
  target_link_libraries(testSaddlePointLinearSolver_initial_Shat                 ${PETSC_LIBRARIES} ${MPI_HOME}/lib/libmpi.so)
@@ -89,6 +93,7 @@ if( SaddlePointLinearSolver_WITH_TESTS )
  target_link_libraries(testSaddlePointLinearSolver_2x2_APIRightWithILU          ${PETSC_LIBRARIES} ${MPI_HOME}/lib/libmpi.so)
  target_link_libraries(testSaddlePointLinearSolver_2x2_APILeft                  ${PETSC_LIBRARIES} ${MPI_HOME}/lib/libmpi.so)
  target_link_libraries(testSaddlePointLinearSolver_2x2_APILeftRight             ${PETSC_LIBRARIES} ${MPI_HOME}/lib/libmpi.so)
+ target_link_libraries(testSaddlePointLinearSolver_2x2_APISchur                 ${PETSC_LIBRARIES} ${MPI_HOME}/lib/libmpi.so)
  target_link_libraries(testSaddlePointLinearSolver_2x2_par                      ${PETSC_LIBRARIES} ${MPI_HOME}/lib/libmpi.so -lm)
  target_link_libraries(testSaddlePointLinearSolver_2x2_par_instrumentation      ${PETSC_LIBRARIES} ${MPI_HOME}/lib/libmpi.so -lm)
 
@@ -106,6 +111,8 @@ add_test(NAME testSaddlePointLinearSolver_2x2_APILeftRight_Cartesian_1          
  set_property (TEST testSaddlePointLinearSolver_2x2_APILeftRight_Cartesian_1 PROPERTY LABELS "C++ 2x2 API LeftRight PC_COMPOSITE Cartesian Cartesian_1")     
 add_test(NAME testSaddlePointLinearSolver_2x2_APIRightWithILU_Cartesian_1               COMMAND "./testSaddlePointLinearSolver_2x2_APIRightWithILU"                 "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/2DCartesian/Cartesian_PolyMAC_1_vp.petsc" "-nU" "40" "-nP" "16")
  set_property (TEST testSaddlePointLinearSolver_2x2_APIRightWithILU_Cartesian_1 PROPERTY LABELS "C++ 2x2 API RightWithILU PC_COMPOSITE Cartesian Cartesian_1")     
+add_test(NAME testSaddlePointLinearSolver_2x2_APISchur_Cartesian_1                COMMAND "./testSaddlePointLinearSolver_2x2_APISchur"                 "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/2DCartesian/Cartesian_PolyMAC_1_vp.petsc" "-nU" "40" "-nP" "16")
+ set_property (TEST testSaddlePointLinearSolver_2x2_APISchur_Cartesian_1 PROPERTY LABELS "C++ 2x2 API Left PCFIELDSPLIT Schur Cartesian Cartesian_1")     
 add_test(NAME testSaddlePointLinearSolver_2x2_APIRight_Assembly_1                COMMAND "./testSaddlePointLinearSolver_2x2_APIRight"                 "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/3DAssemblyMesh/Assembly_PolyMAC_1_vp.petsc" "-nU" "20344" "-nP" "9552" )
  set_property (TEST testSaddlePointLinearSolver_2x2_APIRight_Assembly_1 PROPERTY LABELS "C++ 2x2 API Right PC_COMPOSITE Assembly Assembly_1")     
 add_test(NAME testSaddlePointLinearSolver_2x2_APILeft_Assembly_1                 COMMAND "./testSaddlePointLinearSolver_2x2_APILeft"                 "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/3DAssemblyMesh/Assembly_PolyMAC_1_vp.petsc" "-nU" "20344" "-nP" "9552" )

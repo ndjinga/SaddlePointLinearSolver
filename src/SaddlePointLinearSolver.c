@@ -337,7 +337,7 @@ int getAhatRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat )
 
 int getChatRight( Mat M, Mat G, Mat D, Mat C, Mat * C_hat )
 {
-    PetscPrintf(PETSC_COMM_WORLD,"Construction of the transform matrix by multiplication to the right by an upper triangular matrix U : Ahat = A_input*U ...\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Computing the Schur complement C_hat of A_input ...\n");
 
     Vec v, v_redistributed;
     Mat D_M_inv_G;// D_M_inv = diag(M)^{-1}
@@ -370,8 +370,8 @@ int getChatRight( Mat M, Mat G, Mat D, Mat C, Mat * C_hat )
     MatDiagonalScale( D_M_inv_G, v_redistributed, NULL);//D_M_inv_G contains D_M_inv*G
 
     // Creation of C_hat
-    MatMatMult(D,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,&C_hat);//C_hat contains D*D_M_inv*G
-    MatAYPX(C_hat,-1.0,C,SUBSET_NONZERO_PATTERN);//C_hat contains C - D*D_M_inv*G
+    MatMatMult(D,D_M_inv_G,MAT_INITIAL_MATRIX,PETSC_DEFAULT,C_hat);//C_hat contains D*D_M_inv*G
+    MatAYPX(*C_hat,-1.0,C,SUBSET_NONZERO_PATTERN);//C_hat contains C - D*D_M_inv*G
 
     MatDestroy(&diag_2M);
     MatDestroy(&D_M_inv_G);
@@ -745,10 +745,14 @@ int solveSchurSystemForXoutput( Mat A_input, Mat C_hat, Mat M, IS is_U, IS is_P,
     PetscCall( KSPSetOperators(kspArray[1],schurMat,C_hat) );
     PCSetType( pcfieldsplit2, PCGAMG);
 
+    PetscCall( KSPSetFromOptions(ksp) );
+    PetscCall( KSPSetUp(ksp) );
+    PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system A_input*X_output = b_input with a Schur preconditioner...\n");
+
     PetscCall( KSPSolve(ksp,b_input, *X_output) );
 
     //Extract and display informations about the convergence
-    displayPCCompositeIterationNumbers( &ksp, residu);
+    displayPCFieldSplitIterationNumbers( &ksp, residu);
     
     KSPDestroy(&ksp);
     PetscFree(kspArray);
