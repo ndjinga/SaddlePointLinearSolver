@@ -708,7 +708,7 @@ int solveRightILUTransformedSystemForXoutput( Mat A_input, Mat A_hat, Mat M, Mat
 }
 
 //##### Use Schur complement factorisation to solve the system for Xoutput
-int solveSchurSystemForXoutput( Mat A_input, Mat C_hat, Mat M, IS is_U, IS is_P, Vec b_input, Vec * X_output, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double *residu)
+int solveSchurSystemForXoutput( Mat A_input, IS is_U, IS is_P, Vec b_input, Vec * X_output, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double *residu)
 {
     KSP ksp;
     KSPType ksp_type = KSPFBCGS;//BCGS seems very efficient
@@ -727,11 +727,11 @@ int solveSchurSystemForXoutput( Mat A_input, Mat C_hat, Mat M, IS is_U, IS is_P,
 //#### The PCFIELDSPLIT preconditioner (based on GAMG and ILU) ###//
     KSP *kspArray;
     PC pcfieldsplit1, pcfieldsplit2;
-    Mat schurMat, schurMatPrec;
 
     PCFieldSplitSetIS(pc, "0",is_U);//The order here matters a lot between this line and the next
     PCFieldSplitSetIS(pc, "1",is_P);//The order here matters a lot between this line and the previous
-    PCFieldSplitSetSchurPre(pc,PC_FIELDSPLIT_SCHUR_PRE_USER,C_hat);//or PC_FIELDSPLIT_SCHUR_PRE_SELFP
+    PCFieldSplitSetSchurPre(pc,PC_FIELDSPLIT_SCHUR_PRE_SELFP,NULL);//or PC_FIELDSPLIT_SCHUR_PRE_USER if you provide Chat
+    PCFieldSplitSetSchurFactType( pc, PC_FIELDSPLIT_SCHUR_FACT_FULL);
     PetscCall( PCSetUp( pc) );
     PCFieldSplitSchurGetSubKSP( pc, NULL, &kspArray);
     KSPSetType( kspArray[0], KSPPREONLY);
@@ -739,11 +739,8 @@ int solveSchurSystemForXoutput( Mat A_input, Mat C_hat, Mat M, IS is_U, IS is_P,
     KSPGetPC(kspArray[0], &pcfieldsplit1);
     KSPGetPC(kspArray[1], &pcfieldsplit2);
 
-    //PetscCall( PCSetOperators(pcfieldsplit,M,M) );
-    PCSetType( pcfieldsplit1, PCBJACOBI);
-    KSPGetOperators(kspArray[1], &schurMat, &schurMatPrec);
-    PetscCall( KSPSetOperators(kspArray[1],schurMat,C_hat) );
-    PCSetType( pcfieldsplit2, PCGAMG);
+    PCSetType( pcfieldsplit1, PCJACOBI);
+    PCSetType( pcfieldsplit2, PCBJACOBI);
 
     PetscCall( KSPSetFromOptions(ksp) );
     PetscCall( KSPSetUp(ksp) );
