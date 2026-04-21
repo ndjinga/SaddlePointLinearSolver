@@ -18,3 +18,13 @@ typedef struct {
 PetscErrorCode applyPC2x2(PC,Vec,Vec);
 PetscErrorCode setupPC2x2(PC);
 PetscErrorCode destroyPC2x2(PC);
+
+/* USAGE
+
+  PCCreate(comm,&pc);
+  PCSetType(pc,PCSHELL);
+  PCShellSetContext(pc,&ctx)
+  PCShellSetApply(pc,apply);
+  PCShellSetSetUp(pc,setup);                   
+  PCShellSetDestroy(pc,destroy);               
+*/

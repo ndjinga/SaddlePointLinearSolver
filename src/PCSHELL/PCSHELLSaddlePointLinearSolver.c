@@ -1,15 +1,5 @@
 #include "PCSHELLSaddlePointLinearSolver.h"
 
-/* USAGE
-
-  PCCreate(comm,&pc);
-  PCSetType(pc,PCSHELL);
-  PCShellSetContext(pc,ctx)
-  PCShellSetApply(pc,apply);
-  PCShellSetSetUp(pc,setup);                   
-  PCShellSetDestroy(pc,destroy);               
-*/
-
 /* setup function for the preconditioner */
 PetscErrorCode setupPC2x2(PC pcshell)
 {
