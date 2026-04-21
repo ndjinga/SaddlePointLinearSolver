@@ -15,22 +15,10 @@ set (PETSC_DIR            OFF CACHE STRING "PETSc library path" )
 set (PETSC_ARCH           OFF CACHE STRING "PETSc architecture" )
 set (MPI_HOME             OFF CACHE STRING "MPI library path" )
 
-set(MY_SOURCES
-src/SaddlePointLinearSolver.c
-)
-set(MY_HEADERS
-src/
-)
-
 find_package (PETSc 3.4 REQUIRED)
 
-add_library(SaddlePointLinearSolverLib SHARED ${MY_SOURCES})
-message(STATUS ${PETSC_INCLUDES})
-target_include_directories(SaddlePointLinearSolverLib PRIVATE ${PETSC_INCLUDES} ${MY_HEADERS})
-install(TARGETS SaddlePointLinearSolverLib DESTINATION lib)
-
 if( SaddlePointLinearSolver_WITH_MPI )
-  message(STATUS "SaddlePointLinearSolverm requested with MPI library. Searching MPI library.")
+  message(STATUS "SaddlePointLinearSolver requested with MPI library. Searching MPI library.")
   if   ( NOT MPI_HOME)
     set( MPI_HOME ${PETSC_DIR}/${PETSC_ARCH} )
   endif( NOT MPI_HOME)
@@ -38,17 +26,24 @@ if( SaddlePointLinearSolver_WITH_MPI )
 endif( SaddlePointLinearSolver_WITH_MPI )
 
 if( SaddlePointLinearSolver_WITH_PYTHON )
-  message(STATUS "SaddlePointLinearSolverm requested with PYTHON library. Searching PYTHON library.")
+  message(STATUS "SaddlePointLinearSolver requested with PYTHON library. Searching PYTHON library.")
   find_package(Python ${PYTHON2OR3} REQUIRED COMPONENTS Interpreter Development )
   SET(PYTHON_EXECUTABLE ${Python_EXECUTABLE})
  # find_package (SWIG 3.0 REQUIRED)
  # add_subdirectory(swig)
 endif( SaddlePointLinearSolver_WITH_PYTHON )
 
+set(MY_HEADERS
+src
+src/PCSHELL/
+)
+
+add_subdirectory(src)
+
 if( SaddlePointLinearSolver_WITH_TESTS )
  enable_testing ()
 
- set(MY_TEST_SOURCES
+set(MY_TEST_SOURCES
  tests/src/testSaddlePointLinearSolver_initial_seq.c
  tests/src/testSaddlePointLinearSolver_2x2_APIRight.c
  tests/src/testSaddlePointLinearSolver_2x2_APIRightWithILU.c
