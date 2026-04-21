@@ -55,7 +55,7 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 
 int main( int argc, char **args ){
 	PetscInitialize(&argc,&args, (char*)0,help);
-	PetscInt n_u, n_p, n;//Total number of velocity and pressure lines. n = n_u+ n_p
+	PetscInt n_u, n_p;//Total number of velocity and pressure lines. n = n_u+ n_p
 	char file[1][PETSC_MAX_PATH_LEN], mat_type[256]; // File to load, matrix type
 	Mat A_input, A_hat, Pmat;
 	Mat M, G, D, C;
@@ -76,7 +76,6 @@ int main( int argc, char **args ){
 	PetscOptionsGetString(NULL,NULL,"-mat_type",mat_type,sizeof(mat_type),NULL);
 	PetscOptionsGetInt(NULL,NULL,"-nU",&n_u,NULL);
 	PetscOptionsGetInt(NULL,NULL,"-nP",&n_p,NULL);
-	n=n_u+n_p;
     
 	loadPETScMat( file[0], mat_type, &A_input, n_u, n_p);
 	
@@ -106,6 +105,7 @@ int main( int argc, char **args ){
 	PetscLogStageGetPerfInfo( linear_system_stage, &info_linear_system_stage);
 	PetscPrintf(PETSC_COMM_WORLD, "\nTime taken to solve the linear system : %e \n\n",info_linear_system_stage.time);
 
+//##### Check the solution is correct
 	Vec X_p;//Pressure components of the main unknown
 	Vec X_u;//Velocity components of the transformed unknown
 	PetscCall( VecGetSubVector( X_output, is_P, &X_p) );

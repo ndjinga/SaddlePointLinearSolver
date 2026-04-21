@@ -43,11 +43,11 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 
 int main( int argc, char **args ){
 	PetscInitialize(&argc,&args, (char*)0,help);
-	PetscInt n_u, n_p, n;//Total number of velocity and pressure lines. n = n_u+ n_p
+	PetscInt n_u, n_p;//Total number of velocity and pressure lines. n = n_u+ n_p
 	char file[1][PETSC_MAX_PATH_LEN], mat_type[256]; // File to load, matrix type
 	Mat A_input, A_hat;
 	Mat M, G, D, C;
-	IS is_U,is_P;
+	IS is_U, is_P;
 	Vec b_input, X_anal, X_output, X_u, X_p;
 	double error,  rtol=1e-7, residu;
 
@@ -62,7 +62,6 @@ int main( int argc, char **args ){
 	PetscOptionsGetString(NULL,NULL,"-mat_type",mat_type,sizeof(mat_type),NULL);
 	PetscOptionsGetInt(NULL,NULL,"-nU",&n_u,NULL);
 	PetscOptionsGetInt(NULL,NULL,"-nP",&n_p,NULL);
-	n=n_u+n_p;
 
 	loadPETScMat( file[0], mat_type, &A_input, n_u, n_p);
 	
@@ -86,6 +85,7 @@ int main( int argc, char **args ){
 	PetscLogStageGetPerfInfo( linear_system_stage, &info_linear_system_stage);
 	PetscPrintf(PETSC_COMM_WORLD, "\nTime taken to solve the linear system : %e \n\n",info_linear_system_stage.time);
 	
+//##### Check the solution is correct
 	error = computeErrorAndCheck( X_anal, X_output, is_U, is_P, X_u, X_p);	
 	PetscCheck( error < 1e6*residu, PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED, "Linear system did not return accurate solution. Error is too high compared to residual (e>1e6*r) : e=%e, r=%e\n", error, residu);
 	
