@@ -11,7 +11,7 @@
 */
 
 /* setup function for the preconditioner */
-PetscErrorCode setup(PC pcshell)
+PetscErrorCode setupPC2x2(PC pcshell)
 {
     SaddlePointCtx2x2 * ctx;
     Mat          Amat, Pmat;     /* The system matrix */
@@ -73,7 +73,7 @@ PetscErrorCode setup(PC pcshell)
 }
 
 /* destroy function for the preconditioner */
-PetscErrorCode destroy(PC pcshell)
+PetscErrorCode destroyPC2x2(PC pcshell)
 {
     SaddlePointCtx2x2 * ctx;
     
@@ -84,7 +84,7 @@ PetscErrorCode destroy(PC pcshell)
 }
 
 /* multiplication operator for the preconditioner */
-PetscErrorCode apply(PC pcshell, Vec x, Vec y)
+PetscErrorCode applyPC2x2(PC pcshell, Vec x, Vec y)
 {
     SaddlePointCtx2x2 * ctx;
     

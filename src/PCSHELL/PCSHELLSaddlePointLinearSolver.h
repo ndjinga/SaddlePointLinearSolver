@@ -15,6 +15,6 @@ typedef struct {
  } SaddlePointCtx2x2;
 
 
-PetscErrorCode apply(PC,Vec,Vec);
-PetscErrorCode setup(PC);
-PetscErrorCode destroy(PC);
+PetscErrorCode applyPC2x2(PC,Vec,Vec);
+PetscErrorCode setupPC2x2(PC);
+PetscErrorCode destroyPC2x2(PC);
