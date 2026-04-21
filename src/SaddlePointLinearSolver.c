@@ -157,10 +157,6 @@ int splitPETScMatrix2x2(Mat A_input, PetscInt n_u, PetscInt n_p, Mat * M, Mat * 
 //### Vectors X_anal and b_input must be deleted by caller
 void buildRHSVector( Mat A_input, PetscInt n_u, PetscInt n_p, Vec * X_anal, Vec * b_input)
 {
-    PetscMPIInt    size;        /* size of communicator */
-    PetscMPIInt    rank;        /* processor rank */
-    MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
-    MPI_Comm_size(PETSC_COMM_WORLD,&size);
     PetscInt irow_min, irow_max;//min and max indices of rows stored locally on this process
     MatGetOwnershipRange( A_input, &irow_min, &irow_max);
 

@@ -2,18 +2,16 @@
 #include <petscksp.h>
 
 /*
-     User-defined application context
+     User-defined preconditioner context
 */
 typedef struct {
-   Vec         v;     /* Diagonal of the bloc M */
-   PetscMPIInt rank;  /* rank of processor */
-   PetscMPIInt size;  /* size of communicator */
-   PetscMPIInt n_U;  /* number of velocity lines */
-   PetscMPIInt n_P;  /* number of pressure lines */
- } ApplicationCtx;
+   PC           pc;       /* The PCFIELDSPLIT main preconditioner (output)*/
+   Mat     A_input;       /* The system matrix */
+   PetscMPIInt n_U;       /* number of velocity lines (input)*/
+   PetscMPIInt n_P;       /* number of pressure lines (input)*/
+ } SaddlePointCtx2x2;
 
 
-extern PetscErrorCode apply(PC,Vec,Vec);
-extern PetscErrorCode applyba(PC,PCSide,Vec,Vec,Vec);
-extern PetscErrorCode setup(PC);
-extern PetscErrorCode destroy(PC);
+PetscErrorCode apply(PC,Vec,Vec);
+PetscErrorCode setup(PC);
+PetscErrorCode destroy(PC);

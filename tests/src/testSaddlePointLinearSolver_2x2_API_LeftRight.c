@@ -49,10 +49,6 @@ static char help[] = "Read a PETSc matrix from a file -f0 <input file>\n Paramet
 
 int main( int argc, char **args ){
 	PetscInitialize(&argc,&args, (char*)0,help);
-	PetscMPIInt    size;        /* size of communicator */
-	PetscMPIInt    rank;        /* processor rank */
-	MPI_Comm_rank(PETSC_COMM_WORLD,&rank);
-	MPI_Comm_size(PETSC_COMM_WORLD,&size);
 	PetscInt n_u, n_p, n;//Total number of velocity and pressure lines. n = n_u+ n_p
 	char file[1][PETSC_MAX_PATH_LEN], mat_type[256]; // File to load, matrix type
 	Mat A_input, A_hat, Pmat;
