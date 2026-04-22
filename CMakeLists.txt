@@ -125,6 +125,8 @@ add_test(NAME testSaddlePointLinearSolver_2x2_APIRightWithILU_Assembly_1        
  set_property (TEST testSaddlePointLinearSolver_2x2_APIRightWithILU_Assembly_1 PROPERTY LABELS "C++ 2x2 API RightWithILU PC_COMPOSITE Assembly Assembly_1")     
 add_test(NAME testSaddlePointLinearSolver_2x2_APISchur_Assembly_1                COMMAND "./testSaddlePointLinearSolver_2x2_APISchur"                 "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/3DAssemblyMesh/Assembly_PolyMAC_1_vp.petsc" "-nU" "20344" "-nP" "9552" )
  set_property (TEST testSaddlePointLinearSolver_2x2_APISchur_Assembly_1 PROPERTY LABELS "C++ 2x2 API PCFIELDSPLIT Schur Assembly Assembly_1")     
+add_test(NAME testSaddlePointLinearSolver_2x2_PCSHELL_Schur_Assembly_1                COMMAND "./testSaddlePointLinearSolver_2x2_PCSHELL_Schur"                 "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/3DAssemblyMesh/Assembly_PolyMAC_1_vp.petsc" "-nU" "20344" "-nP" "9552" )
+ set_property (TEST testSaddlePointLinearSolver_2x2_PCSHELL_Schur_Assembly_1 PROPERTY LABELS "C++ 2x2 API PCSHELL Schur Assembly Assembly_1")     
 add_test(NAME testSaddlePointLinearSolver_2x2_par_Cartesian_1                 COMMAND "./testSaddlePointLinearSolver_2x2_par"                 "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/2DCartesian/Cartesian_PolyMAC_1_vp.petsc" "-nU" "40" "-nP" "16")
  set_property (TEST testSaddlePointLinearSolver_2x2_par_Cartesian_1 PROPERTY LABELS "C++ 2x2 par1 PC_COMPOSITE Cartesian Cartesian_1")     
 add_test(NAME testSaddlePointLinearSolver_2x2_par_Cartesian_3                 COMMAND "./testSaddlePointLinearSolver_2x2_par"                 "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/2DCartesian/Cartesian_PolyMAC_3_vp.petsc" "-nU" "544" "-nP" "256")
