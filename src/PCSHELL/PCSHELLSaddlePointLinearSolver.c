@@ -18,6 +18,7 @@ PetscErrorCode setupPC2x2(PC pcshell)
 //#### Building the index sets is_U and is_P
     PetscCall(PCShellGetContext( pcshell, &ctx));
     n_u = ctx->n_u;
+    n_p = ctx->n_p;
     PCGetOperators( pcshell, &Amat, &Pmat);
     MatGetOwnershipRange( Pmat, &irow_min, &irow_max);
     MatGetSize( Pmat, &nrows, &ncolumns);
@@ -36,6 +37,7 @@ PetscErrorCode setupPC2x2(PC pcshell)
 
 //#### The PCFIELDSPLIT preconditioner (based on GAMG and ILU) ###//
     PCCreate(PETSC_COMM_WORLD, &ctx->pc);
+    PetscCall( PCSetOperators(ctx->pc,Amat,Pmat) );
     PCSetType( ctx->pc, PCFIELDSPLIT);
     PCFieldSplitSetType( ctx->pc, PC_COMPOSITE_SCHUR);
 
@@ -53,8 +55,6 @@ PetscErrorCode setupPC2x2(PC pcshell)
     PCSetType( subpc1, PCJACOBI);
     PCSetType( subpc2, PCBJACOBI);
 
-    PCDestroy(&subpc1);
-    PCDestroy(&subpc2);
     ISDestroy(&is_U);
     ISDestroy(&is_P);
     PetscFree(kspArray);

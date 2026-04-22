@@ -20,7 +20,7 @@ int main( int argc, char **args ){
 	PetscInt n_u, n_p;//Total number of velocity and pressure lines. n = n_u+ n_p
 	char file[1][PETSC_MAX_PATH_LEN], mat_type[256]; // File to load, matrix type
 	Mat A_input;
-	Vec b_input, X_anal, X_output, X_u, X_p;
+	Vec b_input, X_anal, X_output;
 	double error,  rtol=1e-7, residu;
     PC pc;
     KSP ksp;
@@ -55,7 +55,7 @@ int main( int argc, char **args ){
     SaddlePointCtx2x2 ctx = 
     {
       .n_u = n_u,             /* indices of velocity lines */
-      .n_u = n_p              /* indices of pressure lines */
+      .n_p = n_p              /* indices of pressure lines */
     };
     PCShellSetContext(pc,&ctx);
     PCShellSetApply(pc,applyPC2x2);
@@ -65,6 +65,7 @@ int main( int argc, char **args ){
     PetscCall( KSPSetUp(ksp) );
 
 	VecDuplicate(b_input,&X_output);// X_output will store the numerical solution of the linear system
+    PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system A_input*X_output = b_input with a Schur preconditioner...\n");
     PetscCall( KSPSolve(ksp,b_input, X_output) );
 
 	PetscLogStagePop();//Instrumentation : fin de la résolution du second membre
@@ -74,8 +75,9 @@ int main( int argc, char **args ){
 //##### Check the solution is correct
     VecAXPY(  X_output, -1, X_anal);
     VecNorm(  X_output, NORM_2, &error);
-    PetscPrintf(PETSC_COMM_WORLD,"L2 Error : ||X_anal - X_num|| = %e\n", error);
 
+    KSPGetResidualNorm( ksp, &residu);
+    PetscPrintf(PETSC_COMM_WORLD,"L2 Error : ||X_anal - X_num|| = %e, L2 residual ||A*X_num - b|| = %e\n", error, residu);
 	PetscCheck( error < 1e6*residu, PETSC_COMM_WORLD, PETSC_ERR_NOT_CONVERGED, "Linear system did not return accurate solution. Error is too high compared to residual (e>1e6*r) : e=%e, r=%e\n", error, residu);
 	
 //##### Cleaning of the memory
@@ -84,8 +86,6 @@ int main( int argc, char **args ){
 
 	VecDestroy(&b_input);
 	VecDestroy(&X_anal);
-	VecDestroy(&X_u);
-	VecDestroy(&X_p);
 	VecDestroy(&X_output);
 
 	PetscFinalize();
