@@ -53,7 +53,7 @@ PetscErrorCode setupPC2x2(PC pcshell)
     KSPGetPC(kspArray[1], &subpc2);
 
     PCSetType( subpc1, PCJACOBI);
-    PCSetType( subpc2, PCBJACOBI);
+    PCSetType( subpc2, PCBJACOBI);//or PCHYPRE with multigrid
 
     ISDestroy(&is_U);
     ISDestroy(&is_P);
