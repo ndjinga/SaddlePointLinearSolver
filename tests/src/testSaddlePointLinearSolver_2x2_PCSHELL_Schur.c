@@ -79,7 +79,7 @@ int main( int argc, char **args ){
     KSPGetResidualNorm( ksp, &residu);
     KSPGetIterationNumber(ksp,&iter);
     
-    PetscPrintf(PETSC_COMM_WORLD,"Nombre d'itérations = %d\n\n", iter);
+    PetscPrintf(PETSC_COMM_WORLD,"Nombre d'itérations %s = %d\n\n", iter, ksp_type);
     PetscPrintf(PETSC_COMM_WORLD,"L2 Error : ||X_anal - X_num|| = %e\n", error);
     PetscPrintf(PETSC_COMM_WORLD,"L2 residual ||A*X_num - b|| = %e\n\n", residu);
 
