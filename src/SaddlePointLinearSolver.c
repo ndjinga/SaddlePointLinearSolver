@@ -753,6 +753,71 @@ int solveSchurSystemForXoutput( Mat A_input, IS is_U, IS is_P, Vec b_input, Vec 
     return PETSC_SUCCESS;
 }
 
+//##### Use Schur complement factorisation with Hypre boomeramg to solve the system for Xoutput
+int solveSchurHypreSystemForXoutput( Mat A_input, IS is_U, IS is_P, Vec b_input, Vec * X_output, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double *residu)
+{
+    KSP ksp;
+    KSPType ksp_type = KSPFBCGS;//BCGS seems very efficient
+    PC pc;
+    int iter;
+
+    PetscPrintf(PETSC_COMM_WORLD,"Setting the main solver ...\n");
+    KSPCreate(PETSC_COMM_WORLD,&ksp);
+    KSPSetType(ksp, ksp_type);
+    PetscCall( KSPSetOperators(ksp,A_input,A_input) );
+    KSPSetTolerances(ksp,rtol, abstol, dtol, numberMaxOfIter);
+    KSPGetPC(ksp,&pc);
+    PetscPrintf(PETSC_COMM_WORLD,"Setting the preconditioner ...\n");
+    PCSetType(pc,PCFIELDSPLIT);
+    PCFieldSplitSetType( pc, PC_COMPOSITE_SCHUR);
+
+//#### The PCFIELDSPLIT preconditioner (based on GAMG and ILU) ###//
+    KSP *kspArray;
+    PC pcfieldsplit1, pcfieldsplit2;
+
+    PCFieldSplitSetIS(pc, "0",is_U);//The order here matters a lot between this line and the next
+    PCFieldSplitSetIS(pc, "1",is_P);//The order here matters a lot between this line and the previous
+    PCFieldSplitSetSchurPre(pc,PC_FIELDSPLIT_SCHUR_PRE_SELFP,NULL);//or PC_FIELDSPLIT_SCHUR_PRE_USER if you provide Chat
+    PCFieldSplitSetSchurFactType( pc, PC_FIELDSPLIT_SCHUR_FACT_FULL);
+    PetscCall( PCSetUp( pc) );
+    PCFieldSplitSchurGetSubKSP( pc, NULL, &kspArray);
+    KSPSetType( kspArray[0], KSPPREONLY);
+    KSPSetType( kspArray[1], KSPPREONLY);
+    KSPGetPC(kspArray[0], &pcfieldsplit1);
+    KSPGetPC(kspArray[1], &pcfieldsplit2);
+
+    PCSetType( pcfieldsplit1, PCJACOBI);
+    PCSetType( pcfieldsplit2, PCHYPRE);
+    PetscCall( PCHYPRESetType( pcfieldsplit2, "boomeramg") );
+
+    PetscCall(PetscOptionsSetValue(NULL, "-fieldsplit_1_pc_hypre_boomeramg_strong_threshold", "0.8") );
+    PetscCall(PetscOptionsSetValue(NULL, "-fieldsplit_1_pc_hypre_boomeramg_agg_nl",  "4") );
+    /*
+    PetscCall(PetscOptionsSetValue(NULL, "-fieldsplit_1_pc_hypre_boomeramg_agg_num_paths", "5") );
+    PetscCall(PetscOptionsSetValue(NULL, "-fieldsplit_1_pc_hypre_boomeramg_max_levels", "25") );
+    PetscCall(PetscOptionsSetValue(NULL, "-fieldsplit_1_pc_hypre_boomeramg_coarsen_type", "PMIS") );
+    PetscCall(PetscOptionsSetValue(NULL, "-fieldsplit_1_pc_hypre_boomeramg_interp_type", "ext+i") );
+    PetscCall(PetscOptionsSetValue(NULL, "-fieldsplit_1_pc_hypre_boomeramg_P_max", "2") );
+    PetscCall(PetscOptionsSetValue(NULL, "-fieldsplit_1_pc_hypre_boomeramg_truncfactor", "0.5") );
+    */
+    PetscCall( PCSetFromOptions(pcfieldsplit2) );//KSPSetFromOptions ne passe pas les options à pcfieldsplit2
+
+
+    PetscCall( KSPSetFromOptions(ksp) );
+    PetscCall( KSPSetUp(ksp) );
+    PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system A_input*X_output = b_input with a Schur preconditioner...\n");
+
+    PetscCall( KSPSolve(ksp,b_input, *X_output) );
+
+    //Extract and display informations about the resolution
+    displayPCFieldSplitIterationNumbers(&ksp, residu);
+    
+    KSPDestroy(&ksp);
+    PetscFree(kspArray);
+
+    return PETSC_SUCCESS;
+}
+
 //##### Solve the left transformed system for Xoutput
 int solveLeftTransformedSystemForXoutput( Mat Ahat, Mat Pmat, IS is_U, IS is_P, Vec b_hat, Vec * X_output, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double * residu, PetscBool useLowerTriangularTransform)
 {
