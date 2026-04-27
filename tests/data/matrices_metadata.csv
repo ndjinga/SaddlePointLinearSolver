@@ -63,6 +63,12 @@ Voronoi_PolyMAC_2_vp,3DVoronoi,402,66,0
 Voronoi_PolyMAC_3_vp,3DVoronoi,811,130,0
 Voronoi_PolyMAC_4_vp,3DVoronoi,1452,228,0
 Voronoi_PolyMAC_5_vp,3DVoronoi,2376,356,0
+LocallyRefined_PolyMAC_1,2DLocallyRefined,96,40,0
+LocallyRefined_PolyMAC_2,2DLocallyRefined,352,160,0
+LocallyRefined_PolyMAC_3,2DLocallyRefined,1344,640,0
+LocallyRefined_PolyMAC_4,2DLocallyRefined,5248,2560,0
+LocallyRefined_PolyMAC_5,2DLocallyRefined,20736,10240,0
+LocallyRefined_PolyMAC_6,2DLocallyRefined,82432,40960,0
 Cartesian_PolyMAC_1,2DCartesian,40,16,25
 Cartesian_PolyMAC_2,2DCartesian,144,64,81
 Cartesian_PolyMAC_3,2DCartesian,544,256,289
@@ -127,3 +133,9 @@ Voronoi_PolyMAC_2,3DVoronoi,402,66,674
 Voronoi_PolyMAC_3,3DVoronoi,811,130,1364
 Voronoi_PolyMAC_4,3DVoronoi,1452,228,2450
 Voronoi_PolyMAC_5,3DVoronoi,2376,356,4042
+LocallyRefined_PolyMAC_1,2DLocallyRefined,96,40,96
+LocallyRefined_PolyMAC_2,2DLocallyRefined,352,160,352
+LocallyRefined_PolyMAC_3,2DLocallyRefined,1344,640,1344
+LocallyRefined_PolyMAC_4,2DLocallyRefined,5248,2560,5248
+LocallyRefined_PolyMAC_5,2DLocallyRefined,20736,10240,20736
+LocallyRefined_PolyMAC_6,2DLocallyRefined,82432,40960,82432
