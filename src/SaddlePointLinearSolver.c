@@ -666,7 +666,7 @@ int solveRightILUTransformedSystemForXoutput( Mat A_input, Mat A_hat, Mat M, Mat
     KSPGetPC(kspArray[1], &pcfieldsplit2);
 
     PCSetType( pcfieldsplit1, PCBJACOBI);
-    PCSetType( pcfieldsplit2, PCGAMG);
+    PCSetType( pcfieldsplit2, PCGAMG);//Missing : this preconditioner should be built from the schur complement approximation
 
 //### The upper triangular preconditioner corresponding to the triangular transform ####
     PC pctransform;
@@ -720,13 +720,13 @@ int solveSchurSystemForXoutput( Mat A_input, IS is_U, IS is_P, Vec b_input, Vec 
     PCSetType(pc,PCFIELDSPLIT);
     PCFieldSplitSetType( pc, PC_COMPOSITE_SCHUR);
 
-//#### The PCFIELDSPLIT preconditioner (based on GAMG and ILU) ###//
+//#### The PCFIELDSPLIT preconditioner (based on JACOBI and ILU/GAMG) ###//
     KSP *kspArray;
     PC pcfieldsplit1, pcfieldsplit2;
 
     PCFieldSplitSetIS(pc, "0",is_U);//The order here matters a lot between this line and the next
     PCFieldSplitSetIS(pc, "1",is_P);//The order here matters a lot between this line and the previous
-    PCFieldSplitSetSchurPre(pc,PC_FIELDSPLIT_SCHUR_PRE_SELFP,NULL);//or PC_FIELDSPLIT_SCHUR_PRE_USER if you provide Chat
+    PCFieldSplitSetSchurPre(pc,PC_FIELDSPLIT_SCHUR_PRE_SELFP,NULL);//SELFP approximates A11 by its diagonal in the shur complement preconditioner//or use PC_FIELDSPLIT_SCHUR_PRE_USER if you provide Chat
     PCFieldSplitSetSchurFactType( pc, PC_FIELDSPLIT_SCHUR_FACT_FULL);
     PetscCall( PCSetUp( pc) );
     PCFieldSplitSchurGetSubKSP( pc, NULL, &kspArray);
@@ -736,11 +736,11 @@ int solveSchurSystemForXoutput( Mat A_input, IS is_U, IS is_P, Vec b_input, Vec 
     KSPGetPC(kspArray[1], &pcfieldsplit2);
 
     PCSetType( pcfieldsplit1, PCJACOBI);
-    PCSetType( pcfieldsplit2, PCBJACOBI);
+    PCSetType( pcfieldsplit2, PCBJACOBI);//try PCGAMG
 
     PetscCall( KSPSetFromOptions(ksp) );
     PetscCall( KSPSetUp(ksp) );
-    PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system A_input*X_output = b_input with a Schur preconditioner...\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system A_input*X_output = b_input with a Schur preconditioner usng PCBJACOBI...\n");
 
     PetscCall( KSPSolve(ksp,b_input, *X_output) );
 
@@ -753,6 +753,7 @@ int solveSchurSystemForXoutput( Mat A_input, IS is_U, IS is_P, Vec b_input, Vec 
     return PETSC_SUCCESS;
 }
 
+#if PETSC_HAVE_HYPRE
 //##### Use Schur complement factorisation with Hypre boomeramg to solve the system for Xoutput
 int solveSchurHypreSystemForXoutput( Mat A_input, IS is_U, IS is_P, Vec b_input, Vec * X_output, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double *residu)
 {
@@ -771,13 +772,13 @@ int solveSchurHypreSystemForXoutput( Mat A_input, IS is_U, IS is_P, Vec b_input,
     PCSetType(pc,PCFIELDSPLIT);
     PCFieldSplitSetType( pc, PC_COMPOSITE_SCHUR);
 
-//#### The PCFIELDSPLIT preconditioner (based on GAMG and ILU) ###//
+//#### The PCFIELDSPLIT preconditioner (based on JACOBI and HYPRE) ###//
     KSP *kspArray;
     PC pcfieldsplit1, pcfieldsplit2;
 
     PCFieldSplitSetIS(pc, "0",is_U);//The order here matters a lot between this line and the next
     PCFieldSplitSetIS(pc, "1",is_P);//The order here matters a lot between this line and the previous
-    PCFieldSplitSetSchurPre(pc,PC_FIELDSPLIT_SCHUR_PRE_SELFP,NULL);//or PC_FIELDSPLIT_SCHUR_PRE_USER if you provide Chat
+    PCFieldSplitSetSchurPre(pc,PC_FIELDSPLIT_SCHUR_PRE_SELFP,NULL);//SELFP approximates A11 by its diagonal in the shur complement preconditioner//or use PC_FIELDSPLIT_SCHUR_PRE_USER if you provide Chat
     PCFieldSplitSetSchurFactType( pc, PC_FIELDSPLIT_SCHUR_FACT_FULL);
     PetscCall( PCSetUp( pc) );
     PCFieldSplitSchurGetSubKSP( pc, NULL, &kspArray);
@@ -805,7 +806,7 @@ int solveSchurHypreSystemForXoutput( Mat A_input, IS is_U, IS is_P, Vec b_input,
 
     PetscCall( KSPSetFromOptions(ksp) );
     PetscCall( KSPSetUp(ksp) );
-    PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system A_input*X_output = b_input with a Schur preconditioner...\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system A_input*X_output = b_input with a Schur preconditioner using PCHYPRE...\n");
 
     PetscCall( KSPSolve(ksp,b_input, *X_output) );
 
@@ -817,6 +818,58 @@ int solveSchurHypreSystemForXoutput( Mat A_input, IS is_U, IS is_P, Vec b_input,
 
     return PETSC_SUCCESS;
 }
+#endif
+
+#if PETSC_HAVE_PFLARE
+int solveSchurPFLARESystemForXoutput( Mat A_input, IS is_U, IS is_P, Vec b_input, Vec * X_output, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double *residu)
+{
+    KSP ksp;
+    KSPType ksp_type = KSPFBCGS;//BCGS seems very efficient
+    PC pc;
+
+    PetscPrintf(PETSC_COMM_WORLD,"Setting the main solver ...\n");
+    KSPCreate(PETSC_COMM_WORLD,&ksp);
+    KSPSetType(ksp, ksp_type);
+    PetscCall( KSPSetOperators(ksp,A_input,A_input) );
+    KSPSetTolerances(ksp,rtol, abstol, dtol, numberMaxOfIter);
+    KSPGetPC(ksp,&pc);
+    PetscPrintf(PETSC_COMM_WORLD,"Setting the preconditioner ...\n");
+    PCSetType(pc,PCFIELDSPLIT);
+    PCFieldSplitSetType( pc, PC_COMPOSITE_SCHUR);
+
+//#### The PCFIELDSPLIT preconditioner (based on JACOBI and ILU/GAMG) ###//
+    KSP *kspArray;
+    PC pcfieldsplit1, pcfieldsplit2;
+
+    PCFieldSplitSetIS(pc, "0",is_U);//The order here matters a lot between this line and the next
+    PCFieldSplitSetIS(pc, "1",is_P);//The order here matters a lot between this line and the previous
+    PCFieldSplitSetSchurPre(pc,PC_FIELDSPLIT_SCHUR_PRE_SELFP,NULL);//SELFP approximates A11 by its diagonal in the schur complement preconditioner. We should use PC_FIELDSPLIT_SCHUR_PRE_USER and provide Sp built from PCPFLAREINV
+    PCFieldSplitSetSchurFactType( pc, PC_FIELDSPLIT_SCHUR_FACT_FULL);
+    PetscCall( PCSetUp( pc) );
+    PCFieldSplitSchurGetSubKSP( pc, NULL, &kspArray);
+    KSPSetType( kspArray[0], KSPPREONLY);
+    KSPSetType( kspArray[1], KSPPREONLY);
+    KSPGetPC(kspArray[0], &pcfieldsplit1);
+    KSPGetPC(kspArray[1], &pcfieldsplit2);
+
+    PCSetType( pcfieldsplit1, PCPFLAREINV);//This is in conflict with the use of a diagonal in the schur approximation matrix. We should use PC_FIELDSPLIT_SCHUR_PRE_USER and provide Sp built from PCPFLAREINV
+    PCSetType( pcfieldsplit2, PCBJACOBI);//try PCGAMG, PCHYPRE and PCAIR
+
+    PetscCall( KSPSetFromOptions(ksp) );
+    PetscCall( KSPSetUp(ksp) );
+    PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system A_input*X_output = b_input with a Schur preconditioner using PFLARE...\n");
+
+    PetscCall( KSPSolve(ksp,b_input, *X_output) );
+
+    //Extract and display informations about the convergence
+    displayPCFieldSplitIterationNumbers( &ksp, residu);
+    
+    KSPDestroy(&ksp);
+    PetscFree(kspArray);
+
+    return PETSC_SUCCESS;
+}
+#endif
 
 //##### Solve the left transformed system for Xoutput
 int solveLeftTransformedSystemForXoutput( Mat Ahat, Mat Pmat, IS is_U, IS is_P, Vec b_hat, Vec * X_output, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double * residu, PetscBool useLowerTriangularTransform)
