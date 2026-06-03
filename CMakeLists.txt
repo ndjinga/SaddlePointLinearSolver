@@ -18,7 +18,7 @@ set (HYPRE_DIR            OFF CACHE STRING "HYPRE base directory" )
 
 find_package (PETSc 3.4 REQUIRED )
 
-set(HYPRE_LIBDIR ${PETSC_LIB_DIR})
+set(HYPRE_LIBDIR ${PETSC_DIR}/${PETSC_ARCH}/lib)
 set(HYPRE_INCDIR ${PETSC_INCLUDES})
 find_package (HYPRE )
 
