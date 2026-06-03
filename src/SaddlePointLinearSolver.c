@@ -1,4 +1,5 @@
 #include "SaddlePointLinearSolver.h"
+#include "pflare.h"
 
 /*
     User-defined application context
