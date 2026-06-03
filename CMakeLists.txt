@@ -15,7 +15,11 @@ set (PETSC_DIR            OFF CACHE STRING "PETSc library path" )
 set (PETSC_ARCH           OFF CACHE STRING "PETSc architecture" )
 set (MPI_HOME             OFF CACHE STRING "MPI library path" )
 
-find_package (PETSc 3.4 REQUIRED)
+find_package (PETSc 3.4 REQUIRED )
+
+set(HYPRE_LIBDIR ${PETSC_LIB_DIR})
+set(HYPRE_INCDIR ${PETSC_INCLUDES})
+find_package (HYPRE )
 
 if( SaddlePointLinearSolver_WITH_MPI )
   message(STATUS "SaddlePointLinearSolver requested with MPI library. Searching MPI library.")
