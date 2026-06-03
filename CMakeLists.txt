@@ -14,6 +14,7 @@ set (PYTHON_ROOT_DIR      OFF CACHE STRING "Python library path" )
 set (PETSC_DIR            OFF CACHE STRING "PETSc library path" )
 set (PETSC_ARCH           OFF CACHE STRING "PETSc architecture" )
 set (MPI_HOME             OFF CACHE STRING "MPI library path" )
+set (HYPRE_DIR            OFF CACHE STRING "HYPRE base directory" )
 
 find_package (PETSc 3.4 REQUIRED )
 
