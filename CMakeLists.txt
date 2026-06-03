@@ -18,9 +18,11 @@ set (HYPRE_DIR            OFF CACHE STRING "HYPRE base directory" )
 
 find_package (PETSc 3.4 REQUIRED )
 
-set(HYPRE_LIBDIR ${PETSC_DIR}/${PETSC_ARCH}/lib)
-set(HYPRE_INCDIR ${PETSC_INCLUDES})
-find_package (HYPRE )
+if( HYPRE_DIR )
+  set(HYPRE_LIBDIR ${PETSC_DIR}/${PETSC_ARCH}/lib)
+  set(HYPRE_INCDIR ${PETSC_INCLUDES})
+  find_package (HYPRE )
+endif( HYPRE_DIR )
 
 if( SaddlePointLinearSolver_WITH_MPI )
   message(STATUS "SaddlePointLinearSolver requested with MPI library. Searching MPI library.")
