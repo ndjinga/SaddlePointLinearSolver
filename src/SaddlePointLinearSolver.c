@@ -828,6 +828,7 @@ int solveSchurPFLARESystemForXoutput( Mat A_input, IS is_U, IS is_P, Vec b_input
     KSP ksp;
     KSPType ksp_type = KSPFBCGS;//BCGS seems very efficient
     PC pc;
+    Mat sparseInverseMat;
 
     PetscPrintf(PETSC_COMM_WORLD,"Setting the main solver ...\n");
     KSPCreate(PETSC_COMM_WORLD,&ksp);
@@ -857,7 +858,9 @@ int solveSchurPFLARESystemForXoutput( Mat A_input, IS is_U, IS is_P, Vec b_input
 
     PCSetType( pcfieldsplit1, PCPFLAREINV);//This is in conflict with the use of a diagonal in the schur approximation matrix. We should use PC_FIELDSPLIT_SCHUR_PRE_USER and provide Sp built from PCPFLAREINV
     PCSetType( pcfieldsplit2, PCBJACOBI);//try PCGAMG, PCHYPRE and PCAIR
-
+    PetscCall( PCSetUp( pcfieldsplit1) );
+    PCPFLAREINVGetInverseMat( pcfieldsplit1, &sparseInverseMat);
+  
     PetscCall( KSPSetFromOptions(ksp) );
     PetscCall( KSPSetUp(ksp) );
     PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system A_input*X_output = b_input with a Schur preconditioner using PFLARE...\n");
