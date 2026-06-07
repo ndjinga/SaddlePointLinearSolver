@@ -174,6 +174,8 @@ show :
   petsc_get_variable (PCC                      petsc_cc)
   petsc_get_variable (PCC_FLAGS                petsc_cc_flags)
   petsc_get_variable (MPIEXEC                  petsc_mpiexec)
+  petsc_get_variable (PFLARE_INCLUDE           pflare_include)
+  petsc_get_variable (PFLARE_LIB               pflare_lib)
   # We are done with the temporary Makefile, calling PETSC_GET_VARIABLE after this point is invalid!
   file (REMOVE ${petsc_config_makefile})
 
@@ -341,6 +343,12 @@ int main(int argc,char *argv[]) {
   set (PETSC_INCLUDES ${petsc_includes_needed} CACHE STRING "PETSc include path" FORCE)
   set (PETSC_LIBRARIES ${PETSC_LIBRARIES_ALL} CACHE STRING "PETSc libraries" FORCE)
   set (PETSC_COMPILER ${petsc_cc} CACHE FILEPATH "PETSc compiler" FORCE)
+  if( pflare_include AND pflare_lib )
+    message (STATUS "PFLARE library found in PETSc")
+    set (PETSC_HAVE_PFLARE 1 CACHE STRING "PETSc have PFLARE library" FORCE)
+    set (PFLARE_INCLUDES ${pflare_include} CACHE STRING "PFLARE include path" FORCE)
+    set (PFLARE_LIB ${pflare_lib} CACHE STRING "PFLARE library" FORCE)
+  endif( pflare_include AND pflare_lib )
   # Note that we have forced values for all these choices.  If you
   # change these, you are telling the system to trust you that they
   # work.  It is likely that you will end up with a broken build.

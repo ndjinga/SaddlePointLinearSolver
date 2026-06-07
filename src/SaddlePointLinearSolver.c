@@ -1,6 +1,7 @@
 #include "SaddlePointLinearSolver.h"
-#include "pflare.h"
-
+#if PETSC_HAVE_PFLARE || WITH_PFLARE
+  #include "pflare.h"
+#endif
 /*
     User-defined application context
  */
