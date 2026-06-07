@@ -838,6 +838,7 @@ int solveSchurPFLARESystemForXoutput( Mat A_input, IS is_U, IS is_P, Vec b_input
     PetscPrintf(PETSC_COMM_WORLD,"Setting the preconditioner ...\n");
     PCSetType(pc,PCFIELDSPLIT);
     PCFieldSplitSetType( pc, PC_COMPOSITE_SCHUR);
+    PCRegister_PFLARE();
 
 //#### The PCFIELDSPLIT preconditioner (based on JACOBI and ILU/GAMG) ###//
     KSP *kspArray;
