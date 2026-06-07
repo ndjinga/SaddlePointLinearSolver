@@ -21,10 +21,10 @@ int solveLeftRightTransformedSystemForXhat(   Mat Ahat, Mat Pmat, IS is_U, IS is
 int solveRightILUTransformedSystemForXoutput( Mat A_input, Mat A_hat, Mat M, Mat G, IS is_U, IS is_P, Vec b_input, Vec * X_output, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double *residu);
 int solveSchurSystemForXoutput(      Mat A_input, IS is_U, IS is_P, Vec b_input, Vec * X_output, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double *residu);
 #if PETSC_HAVE_HYPRE
-int solveSchurHypreSystemForXoutput( Mat A_input, IS is_U, IS is_P, Vec b_input, Vec * X_output, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double *residu);
+ int solveSchurHypreSystemForXoutput( Mat A_input, IS is_U, IS is_P, Vec b_input, Vec * X_output, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double *residu);
 #endif
-#if PETSC_HAVE_PFLARE
-int solveSchurPFLARESystemForXoutput( Mat A_input, IS is_U, IS is_P, Vec b_input, Vec * X_output, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double *residu);
+#if PETSC_HAVE_PFLARE || WITH_PFLARE
+ int solveSchurPFLARESystemForXoutput( Mat A_input, IS is_U, IS is_P, Vec b_input, Vec * X_output, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double *residu);
 #endif
 
 /* Fonctions utilitaires*/

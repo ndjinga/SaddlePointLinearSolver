@@ -822,7 +822,7 @@ int solveSchurHypreSystemForXoutput( Mat A_input, IS is_U, IS is_P, Vec b_input,
 }
 #endif
 
-#if PETSC_HAVE_PFLARE
+#if PETSC_HAVE_PFLARE || WITH_PFLARE
 int solveSchurPFLARESystemForXoutput( Mat A_input, IS is_U, IS is_P, Vec b_input, Vec * X_output, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double *residu)
 {
     KSP ksp;

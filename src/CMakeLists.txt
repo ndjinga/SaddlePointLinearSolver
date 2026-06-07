@@ -7,6 +7,7 @@ PCSHELL/PCSHELLSaddlePointLinearSolver.c
 
 add_library(SaddlePointLinearSolverLib SHARED ${MY_SOURCES})
 target_include_directories(SaddlePointLinearSolverLib PRIVATE ${PETSC_INCLUDES} ${MY_HEADERS})
+target_link_libraries(SaddlePointLinearSolverLib ${PETSC_LIBRARIES} ${MPI_HOME}/lib/libmpi.so ${HYPRE_LIBRARIES} ${PFLARE_LIB} )
 install(TARGETS SaddlePointLinearSolverLib DESTINATION lib)
 
 
