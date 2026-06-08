@@ -37,7 +37,7 @@ int main( int argc, char **args ){
 	PetscOptionsGetInt(NULL,NULL,"-nP",&n_p,NULL);
 
 	loadPETScMat( file[0], mat_type, &A_input, n_u, n_p);
-	splitPETScMatrix2x2(   A_input, n_u, n_p, &M, &G, &D, &C, &is_U, &is_P);
+	splitPETScMatrix2x2(   A_input, n_u, n_p, &M, &G, &D, &C, &is_U, &is_P);//Only the index sets is_U and is_P will be used, the splitting of the matrix is not necessary
 	buildRHSVector( A_input, n_u, n_p, &X_anal, &b_input);
 
 //##### Calling KSP solver and monitor convergence

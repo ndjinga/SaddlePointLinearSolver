@@ -38,9 +38,10 @@ int main( int argc, char **args ){
 	PetscOptionsGetInt(NULL,NULL,"-nOmega",&n_omega,NULL);
 
 	loadPETScMat( file[0], mat_type, &A_input, n_u, n_p+n_omega);
-	splitPETScMatrix2x2(   A_input, n_u, n_p+n_omega, &M, &G, &D, &C, &is_U, &is_P);
+	splitPETScMatrix2x2(   A_input, n_u, n_p+n_omega, &M, &G, &D, &C, &is_U, &is_P);//Only the index sets is_U and is_P will be used, the splitting of the matrix is not necessary
 	buildRHSVector( A_input, n_u, n_p+n_omega, &X_anal, &b_input);
 
+    MatView( A_input, PETSC_VIEWER_STDOUT_WORLD);
 //##### Calling KSP solver and monitor convergence
 	PetscLogStageRegister("Résolution du système linéaire", &linear_system_stage);//Instrumentation : début de la résolution du second membre
 	PetscLogStagePush( linear_system_stage);//Instrumentation
