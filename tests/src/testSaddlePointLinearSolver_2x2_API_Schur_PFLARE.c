@@ -45,7 +45,7 @@ int main( int argc, char **args ){
 	PetscLogStagePush( linear_system_stage);//Instrumentation
 
 	VecDuplicate(b_input,&X_output);// X_output will store the numerical solution of the linear system
-    solveSchurPFLARESystemForXoutput( A_input, is_U, is_P, b_input, &X_output, rtol,PETSC_DEFAULT,PETSC_DEFAULT, PETSC_DEFAULT, &residu);
+	solveSchurPFLARESystemForXoutput( A_input, M, G, D, C, is_U, is_P, b_input, &X_output, rtol,PETSC_DEFAULT,PETSC_DEFAULT, PETSC_DEFAULT, &residu);
 
 	PetscLogStagePop();//Instrumentation : fin de la résolution du second membre
 	PetscLogStageGetPerfInfo( linear_system_stage, &info_linear_system_stage);

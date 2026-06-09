@@ -10,6 +10,7 @@ int transformSystemLeft(      Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pma
 int transformSystemLeftRight( Mat M, Mat G, Mat D, Mat C, Mat * A_hat, Mat * Pmat, Vec * v);
 int getAhatRight(             Mat M, Mat G, Mat D, Mat C, Mat * A_hat );
 int getChatRight(             Mat M, Mat G, Mat D, Mat C, Mat * C_hat );
+int getSchurComplement(       Mat M, Mat G, Mat D, Mat C, Mat * S );
 void getSolutionFromXhat(Mat G, Vec v, Vec X_hat,   Vec * X_output, Vec * X_u, Vec * X_p, IS is_U, IS is_P);
 int  getbhatFrombinput(  Mat D, Vec v, Vec b_input, Vec * b_hat, IS is_U, IS is_P, PetscBool useLowerTriangularTransform);
 double computeErrorAndCheck( Vec X_anal, Vec X_output, IS is_U, IS is_P, Vec X_u, Vec X_p);
@@ -24,7 +25,7 @@ int solveSchurSystemForXoutput(        Mat A_input, IS is_U, IS is_P, Vec b_inpu
  int solveSchurHypreSystemForXoutput(  Mat A_input, IS is_U, IS is_P, Vec b_input, Vec * X_output, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double *residu);
 #endif
 #if PETSC_HAVE_PFLARE || WITH_PFLARE
- int solveSchurPFLARESystemForXoutput( Mat A_input, IS is_U, IS is_P, Vec b_input, Vec * X_output, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double *residu);
+ int solveSchurPFLARESystemForXoutput( Mat A_input, Mat M, Mat G, Mat D, Mat C, IS is_U, IS is_P, Vec b_input, Vec * X_output, PetscReal rtol, PetscReal abstol, PetscReal dtol, PetscInt numberMaxOfIter, double *residu);
 #endif
 
 /* Fonctions utilitaires*/
