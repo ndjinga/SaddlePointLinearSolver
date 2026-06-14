@@ -831,7 +831,7 @@ int solveSchurPFLARESystemForXoutput( Mat A_input, Mat M, Mat G, Mat D, Mat C, I
     PC pc, pcfieldsplit1, pcfieldsplit2;
     Mat sparseMinv, A11, Ap, S, Sp;
     PetscInt pflarePolyOrder, pflareSparsityOrder;
-    PetscBool usePCMAT = PETSC_TRUE;
+    PetscBool usePCPFLAREINV = PETSC_FALSE;
 
     PetscPrintf(PETSC_COMM_WORLD,"Setting the main solver ...\n");
     KSPCreate(PETSC_COMM_WORLD,&ksp);
@@ -852,7 +852,7 @@ int solveSchurPFLARESystemForXoutput( Mat A_input, Mat M, Mat G, Mat D, Mat C, I
     PCFieldSplitSetSchurFactType( pc, PC_FIELDSPLIT_SCHUR_FACT_FULL);
     PetscCall( PCSetUp( pc) );
     PCFieldSplitSchurGetSubKSP( pc, NULL, &kspArray);
-    KSPSetType( kspArray[0], KSPPREONLY);
+    KSPSetType( kspArray[0], KSPGMRES);
     KSPSetType( kspArray[1], KSPPREONLY);
     KSPGetPC(kspArray[0], &pcfieldsplit1);
     KSPGetPC(kspArray[1], &pcfieldsplit2);
@@ -860,7 +860,7 @@ int solveSchurPFLARESystemForXoutput( Mat A_input, Mat M, Mat G, Mat D, Mat C, I
     PCSetType( pcfieldsplit1, PCPFLAREINV);// This will allow the build of Sp from PCPFLAREINV
     //PCPFLAREINVSetPolyOrder(pcfieldsplit1, 6);
     //PCPFLAREINVSetSparsityOrder(pcfieldsplit1, 1);
-    PCPFLAREINVSetType(pcfieldsplit1 , invType);
+    PCPFLAREINVSetType( pcfieldsplit1, invType);
     PetscCall( PCSetUp( pcfieldsplit1) );
     PCPFLAREINVGetPolyOrder(pcfieldsplit1, &pflarePolyOrder);
     PCPFLAREINVGetSparsityOrder(pcfieldsplit1, &pflareSparsityOrder);
@@ -886,11 +886,8 @@ int solveSchurPFLARESystemForXoutput( Mat A_input, Mat M, Mat G, Mat D, Mat C, I
 
     getSchurComplement( Ap, G, D, C, &Sp );
     KSPSetOperators( kspArray[1],   S,  Sp);  
-    if( usePCMAT)
-    {
-        KSPSetOperators( kspArray[0], A11,  Ap);  //Ici Pmat n'est pas une approximation de A mais de son inverse
-        PCSetType( pcfieldsplit1, PCMAT);
-    }
+    if( usePCPFLAREINV)
+        PCSetType( pcfieldsplit1, PCPFLAREINV);
     else
         PCSetType( pcfieldsplit1, PCGAMG);
     PCSetType( pcfieldsplit2, PCGAMG);//try PCGAMG, PCHYPRE and PCAIR
