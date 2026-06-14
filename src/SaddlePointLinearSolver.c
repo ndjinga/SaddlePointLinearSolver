@@ -827,6 +827,7 @@ int solveSchurPFLARESystemForXoutput( Mat A_input, Mat M, Mat G, Mat D, Mat C, I
 {
     KSP ksp, *kspArray;
     KSPType ksp_type = KSPFBCGS;//BCGS seems very efficient
+    PCPFLAREINVType invType = PFLAREINV_NEUMANN;
     PC pc, pcfieldsplit1, pcfieldsplit2;
     Mat sparseMinv, A, Ap, S, Sp;
     PetscInt pflarePolyOrder, pflareSparsityOrder;
@@ -856,36 +857,41 @@ int solveSchurPFLARESystemForXoutput( Mat A_input, Mat M, Mat G, Mat D, Mat C, I
     KSPGetPC(kspArray[1], &pcfieldsplit2);
 
     PCSetType( pcfieldsplit1, PCPFLAREINV);// This will allow the build of Sp from PCPFLAREINV
-    PCSetType( pcfieldsplit2, PCBJACOBI);//try PCGAMG, PCHYPRE and PCAIR
-    PCPFLAREINVSetPolyOrder(pcfieldsplit1, 2);
-    PCPFLAREINVSetSparsityOrder(pcfieldsplit1, 6);
+    //PCPFLAREINVSetPolyOrder(pcfieldsplit1, 6);
+    //PCPFLAREINVSetSparsityOrder(pcfieldsplit1, 1);
+    PCPFLAREINVSetType(pcfieldsplit1 , invType);
     PetscCall( PCSetUp( pcfieldsplit1) );
-    PetscCall( PCSetUp( pcfieldsplit2) );
     PCPFLAREINVGetPolyOrder(pcfieldsplit1, &pflarePolyOrder);
     PCPFLAREINVGetSparsityOrder(pcfieldsplit1, &pflareSparsityOrder);
-    PetscPrintf(PETSC_COMM_WORLD,"PCPFLAREINV Poly Order = %d, PCPFLAREINV Sparsity Order = %d\n",pflarePolyOrder, pflareSparsityOrder);
+    PCPFLAREINVGetType(pcfieldsplit1,  &invType);
+    PetscPrintf(PETSC_COMM_WORLD,"Using PCPFLAREINV type = %d, polynomial order = %d, sparsity order = %d\n", invType, pflarePolyOrder, pflareSparsityOrder);
+    PetscPrintf(PETSC_COMM_WORLD,"  (for the record PFLAREINV_ARNOLDI = %d, PFLAREINV_NEUMANN = %d, PFLAREINV_WJACOBI = %d)\n\n", PFLAREINV_ARNOLDI, PFLAREINV_NEUMANN, PFLAREINV_WJACOBI);
     
     PCPFLAREINVGetInverseMat( pcfieldsplit1, &sparseMinv);
 
-/*    
-    KSPGetOperators( kspArray[0], &A, &Ap);
-    MatView(A,  PETSC_VIEWER_STDOUT_WORLD);
-    MatView(Ap, PETSC_VIEWER_STDOUT_WORLD);
-*/    
     KSPGetOperators( kspArray[1], &S, &Sp);
     getSchurComplement( sparseMinv, G, D, C, &Sp );
-    KSPSetOperators( kspArray[1],  S,  Sp);
 
-
+	//Extraction of the diagonal of M
 /*
-    PCFieldSplitSetSchurPre(pc,PC_FIELDSPLIT_SCHUR_PRE_USER,S);//PC_FIELDSPLIT_SCHUR_PRE_SELFP approximates A11 by its diagonal in the schur complement preconditioner. We should use PC_FIELDSPLIT_SCHUR_PRE_USER and provide Sp built from PCPFLAREINV
-    PCFieldSplitSetSchurFactType( pc, PC_FIELDSPLIT_SCHUR_FACT_FULL);
+    Mat sparseDiagMinv;
+    Vec v;
+	MatCreateVecs(M,NULL,&v);//v has the parallel distribution of M
+	MatGetDiagonal(M,v);
+   	VecReciprocal(v);
+    MatCreateDiagonal( v, &sparseDiagMinv);
+    getSchurComplement( sparseDiagMinv, G, D, C, &Sp );
 */
+
+    KSPSetOperators( kspArray[1],  S,  Sp);//or Sp  
+    PCSetType( pcfieldsplit1, PCGAMG);// This will allow the build of Sp from PCPFLAREINV
+    PCSetType( pcfieldsplit2, PCGAMG);//try PCGAMG, PCHYPRE and PCAIR
+
     PetscCall( PCSetUp( pc) );
 
     PetscCall( KSPSetFromOptions(ksp) );
     PetscCall( KSPSetUp(ksp) );
-    PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system A_input*X_output = b_input with a Schur preconditioner using PFLARE...\n");
+    PetscPrintf(PETSC_COMM_WORLD,"Solving the linear system A_input*X_output = b_input with a Schur preconditioner using PCPFLAREINV approximate inverse...\n");
 
     PetscCall( KSPSolve(ksp,b_input, *X_output) );
 
@@ -1276,6 +1282,18 @@ int displayPCFieldSplitSubTypes(PC pc)
 //Schur matrix S is created, user should delete after use
 int getSchurComplement( Mat Minv, Mat G, Mat D, Mat C, Mat * Sp )
 {
-    PetscCall( MatMatMatMult( D, Minv, G,  MAT_INITIAL_MATRIX, PETSC_DEFAULT, Sp) );//Creates matrix S
+    MatType mat_type;
+    MatGetType( Minv, &mat_type);
+
+    if( strcmp(mat_type , MATDIAGONAL) == 0 )//Careful since products are not allowed between MATDIAGONAL and MATAIJ
+    {
+        Mat Minv2;
+        MatConvert(Minv, MATAIJ, MAT_INITIAL_MATRIX, &Minv2);
+        PetscCall( MatMatMatMult( D, Minv2, G,  MAT_INITIAL_MATRIX, PETSC_DEFAULT, Sp) );//Creates matrix S
+        MatDestroy(&Minv2);
+    }
+    else
+        PetscCall( MatMatMatMult( D, Minv, G,  MAT_INITIAL_MATRIX, PETSC_DEFAULT, Sp) );//Creates matrix S
+
     PetscCall( MatAYPX(*Sp,-1.0,C,SUBSET_NONZERO_PATTERN) );//S contains C - D*M_inv*G
 }
