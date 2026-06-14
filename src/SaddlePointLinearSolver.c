@@ -829,8 +829,9 @@ int solveSchurPFLARESystemForXoutput( Mat A_input, Mat M, Mat G, Mat D, Mat C, I
     KSPType ksp_type = KSPFBCGS;//BCGS seems very efficient
     PCPFLAREINVType invType = PFLAREINV_NEUMANN;
     PC pc, pcfieldsplit1, pcfieldsplit2;
-    Mat sparseMinv, A, Ap, S, Sp;
+    Mat sparseMinv, A11, Ap, S, Sp;
     PetscInt pflarePolyOrder, pflareSparsityOrder;
+    PetscBool usePCMAT = PETSC_TRUE;
 
     PetscPrintf(PETSC_COMM_WORLD,"Setting the main solver ...\n");
     KSPCreate(PETSC_COMM_WORLD,&ksp);
@@ -864,27 +865,34 @@ int solveSchurPFLARESystemForXoutput( Mat A_input, Mat M, Mat G, Mat D, Mat C, I
     PCPFLAREINVGetPolyOrder(pcfieldsplit1, &pflarePolyOrder);
     PCPFLAREINVGetSparsityOrder(pcfieldsplit1, &pflareSparsityOrder);
     PCPFLAREINVGetType(pcfieldsplit1,  &invType);
-    PetscPrintf(PETSC_COMM_WORLD,"Using PCPFLAREINV type = %d, polynomial order = %d, sparsity order = %d\n", invType, pflarePolyOrder, pflareSparsityOrder);
+    PetscPrintf(PETSC_COMM_WORLD,"Built an approximate inverse using PCPFLAREINV type = %d, polynomial order = %d, sparsity order = %d\n", invType, pflarePolyOrder, pflareSparsityOrder);
     PetscPrintf(PETSC_COMM_WORLD,"  (for the record PFLAREINV_ARNOLDI = %d, PFLAREINV_NEUMANN = %d, PFLAREINV_WJACOBI = %d)\n\n", PFLAREINV_ARNOLDI, PFLAREINV_NEUMANN, PFLAREINV_WJACOBI);
     
-    PCPFLAREINVGetInverseMat( pcfieldsplit1, &sparseMinv);
+    KSPGetOperators( kspArray[0], &A11, &Ap);
+    KSPGetOperators( kspArray[1], &S  , &Sp);
 
-    KSPGetOperators( kspArray[1], &S, &Sp);
-    getSchurComplement( sparseMinv, G, D, C, &Sp );
+    //Extract approximate inverse from Pflare
+    PCPFLAREINVGetInverseMat( pcfieldsplit1, &Ap);
 
-	//Extraction of the diagonal of M
+	//Extraction of the diagonal of M to build a diagonal approximate inverse
 /*
-    Mat sparseDiagMinv;
     Vec v;
 	MatCreateVecs(M,NULL,&v);//v has the parallel distribution of M
 	MatGetDiagonal(M,v);
    	VecReciprocal(v);
-    MatCreateDiagonal( v, &sparseDiagMinv);
-    getSchurComplement( sparseDiagMinv, G, D, C, &Sp );
+    MatCreateDiagonal( v, &Ap);
+    PCSetType( pcfieldsplit1, PCJACOBI);//Mettre cette ligne plus bas
 */
 
-    KSPSetOperators( kspArray[1],  S,  Sp);//or Sp  
-    PCSetType( pcfieldsplit1, PCGAMG);// This will allow the build of Sp from PCPFLAREINV
+    getSchurComplement( Ap, G, D, C, &Sp );
+    KSPSetOperators( kspArray[1],   S,  Sp);  
+    if( usePCMAT)
+    {
+        KSPSetOperators( kspArray[0], A11,  Ap);  //Ici Pmat n'est pas une approximation de A mais de son inverse
+        PCSetType( pcfieldsplit1, PCMAT);
+    }
+    else
+        PCSetType( pcfieldsplit1, PCGAMG);
     PCSetType( pcfieldsplit2, PCGAMG);//try PCGAMG, PCHYPRE and PCAIR
 
     PetscCall( PCSetUp( pc) );
