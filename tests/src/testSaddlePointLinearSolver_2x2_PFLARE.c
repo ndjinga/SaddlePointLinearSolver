@@ -198,14 +198,14 @@ int main( int argc, char **args ){
 
 	PetscBool useJacobiInv = PETSC_TRUE;
     
-    if (useJacobiInv)//Extract the diagonal of M to build a diagonal approximate inverse
+    if (useJacobiInv)//Extract the diagonal of M to build a diagonal approximate inverse used in the approximate Schur complement
     {
+        PCSetType( pc1, PCJACOBI);
         Vec v;
-	    MatCreateVecs(M,NULL,&v);//v has the parallel distribution of M
+	    MatCreateVecs(M,NULL,&v);
 	    MatGetDiagonal(M,v);
    	    VecReciprocal(v);
         MatCreateDiagonal( v, &Ap);
-        PCSetType( pc1, PCJACOBI);//Mettre cette ligne plus bas
         VecDestroy(&v);
     }
     else//Use PFLARE to build the approximate inverse of M
@@ -228,7 +228,7 @@ int main( int argc, char **args ){
         PCPFLAREINVGetInverseMat( pc1, &Ap);
     }
     
-    //build approximate schur complement
+    //Build the approximate schur complement
     getSchurComplement( Ap, G, D, C, &Sp );//Sparse Schur complement is built and stord in Sp
     //Give approx schur complement to the schur system
     KSPSetOperators( kspArray[1],   S,  Sp);  
