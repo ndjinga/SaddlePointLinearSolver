@@ -76,7 +76,6 @@ void loadPETScMat(char* file, char* mat_type, Mat * A, PetscInt n_u, PetscInt n_
     MPI_Comm_size(PETSC_COMM_WORLD,&size);
     PetscViewer viewer;
     PetscInt n = n_u + n_p;
-    
     PetscPrintf(PETSC_COMM_WORLD,"Loading Matrix type %s from file %s on %d processor(s)...\n", mat_type, file, size);    
 
     PetscViewerCreate(PETSC_COMM_WORLD, &viewer);    
@@ -1284,7 +1283,7 @@ int displayPCFieldSplitSubTypes(PC pc)
     PetscPrintf(PETSC_COMM_WORLD, "       fieldsplit sub solver 2 name : %s, preconditioner %s, %d iterations \n", ksp_type1, pc_type1, iter2);
 }
 
-//Schur matrix S is created, user should delete after use
+//Schur matrixp S is created, user should delete after use
 int getSchurComplement( Mat Minv, Mat G, Mat D, Mat C, Mat * Sp )
 {
     MatType mat_type;
