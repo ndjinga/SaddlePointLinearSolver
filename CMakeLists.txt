@@ -99,25 +99,25 @@ if(    PFLARE_DIR )
   set(MY_TEST_SOURCES
     $MY_TEST_SOURCES
     tests/src/testSaddlePointLinearSolver_2x2_APISchur_PFLARE.c
-    tests/src/testSaddlePointLinearSolver_2x2_PFLARE.c
+    tests/src/testSaddlePointLinearSolver_2x2_PFLARE_PCPFLAREINV.c
     )
  add_executable(testSaddlePointLinearSolver_2x2_APISchurPFLARE              tests/src/testSaddlePointLinearSolver_2x2_API_Schur_PFLARE.c)
- add_executable(testSaddlePointLinearSolver_2x2_Schur_PFLARE                tests/src/testSaddlePointLinearSolver_2x2_PFLARE.c)
+ add_executable(testSaddlePointLinearSolver_2x2_Schur_PFLARE_PCPFLAREINV                tests/src/testSaddlePointLinearSolver_2x2_PFLARE_PCPFLAREINV.c)
  target_include_directories(testSaddlePointLinearSolver_2x2_APISchurPFLARE  PRIVATE ${PETSC_INCLUDES}  ${MY_HEADERS}  )
- target_include_directories(testSaddlePointLinearSolver_2x2_Schur_PFLARE    PRIVATE ${PETSC_INCLUDES}  ${MY_HEADERS}  )
+ target_include_directories(testSaddlePointLinearSolver_2x2_Schur_PFLARE_PCPFLAREINV    PRIVATE ${PETSC_INCLUDES}  ${MY_HEADERS}  )
  target_link_libraries(testSaddlePointLinearSolver_2x2_APISchurPFLARE       SaddlePointLinearSolverLib ${PETSC_LIBRARIES})
- target_link_libraries(testSaddlePointLinearSolver_2x2_Schur_PFLARE         SaddlePointLinearSolverLib ${PETSC_LIBRARIES} -lm)
+ target_link_libraries(testSaddlePointLinearSolver_2x2_Schur_PFLARE_PCPFLAREINV         SaddlePointLinearSolverLib ${PETSC_LIBRARIES} -lm)
  add_test(NAME testSaddlePointLinearSolver_2x2_APISchurPFLARE_Cartesian_1               COMMAND "./testSaddlePointLinearSolver_2x2_APISchurPFLARE"                 "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/2DCartesian/Cartesian_PolyMAC_1_vp.petsc" "-nU" "40" "-nP" "16")
   set_property (TEST testSaddlePointLinearSolver_2x2_APISchurPFLARE_Cartesian_1 PROPERTY LABELS "C++ 2x2 API PCFIELDSPLIT Schur PFLARE Cartesian Cartesian_1")     
  add_test(NAME testSaddlePointLinearSolver_2x2_APISchurPFLARE_Assembly_1                COMMAND "./testSaddlePointLinearSolver_2x2_APISchurPFLARE"                 "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/3DAssemblyMesh/Assembly_PolyMAC_1_vp.petsc" "-nU" "20344" "-nP" "9552")
   set_property (TEST testSaddlePointLinearSolver_2x2_APISchurPFLARE_Assembly_1 PROPERTY LABELS "C++ 2x2 API PCFIELDSPLIT Schur PFLARE Assembly Assembly_1")     
- add_test(NAME testSaddlePointLinearSolver_2x2_Schur_PFLARE_Cartesian_1               COMMAND "./testSaddlePointLinearSolver_2x2_Schur_PFLARE"                 "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/2DCartesian/Cartesian_PolyMAC_1_vp.petsc" "-nU" "40" "-nP" "16")
-  set_property (TEST testSaddlePointLinearSolver_2x2_Schur_PFLARE_Cartesian_1 PROPERTY LABELS "C++ 2x2 PCFIELDSPLIT Schur PFLARE Cartesian Cartesian_1")     
- add_test(NAME testSaddlePointLinearSolver_2x2_Schur_PFLARE_Assembly_1                COMMAND "./testSaddlePointLinearSolver_2x2_Schur_PFLARE"                 "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/3DAssemblyMesh/Assembly_PolyMAC_1_vp.petsc" "-nU" "20344" "-nP" "9552")
-  set_property (TEST testSaddlePointLinearSolver_2x2_Schur_PFLARE_Assembly_1 PROPERTY LABELS "C++ 2x2 PCFIELDSPLIT Schur PFLARE Assembly Assembly_1")     
+ add_test(NAME testSaddlePointLinearSolver_2x2_Schur_PCPFLAREINV_Cartesian_1               COMMAND "./testSaddlePointLinearSolver_2x2_Schur_PFLARE_PCPFLAREINV"                 "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/2DCartesian/Cartesian_PolyMAC_1_vp.petsc" "-nU" "40" "-nP" "16")
+  set_property (TEST testSaddlePointLinearSolver_2x2_Schur_PCPFLAREINV_Cartesian_1 PROPERTY LABELS "C++ 2x2 PCFIELDSPLIT Schur PFLARE Cartesian Cartesian_1")     
+ add_test(NAME testSaddlePointLinearSolver_2x2_Schur_PCPFLAREINV_Assembly_1                COMMAND "./testSaddlePointLinearSolver_2x2_Schur_PFLARE_PCPFLAREINV"                 "-f0" "${PROJECT_SOURCE_DIR}/tests/data/matrices/3DAssemblyMesh/Assembly_PolyMAC_1_vp.petsc" "-nU" "20344" "-nP" "9552")
+  set_property (TEST testSaddlePointLinearSolver_2x2_Schur_PCPFLAREINV_Assembly_1 PROPERTY LABELS "C++ 2x2 PCFIELDSPLIT Schur PFLARE Assembly Assembly_1")     
 
  install(TARGETS testSaddlePointLinearSolver_2x2_APISchurPFLARE DESTINATION tests)
- install(TARGETS testSaddlePointLinearSolver_2x2_Schur_PFLARE DESTINATION tests)
+ install(TARGETS testSaddlePointLinearSolver_2x2_Schur_PFLARE_PCPFLAREINV DESTINATION tests)
 endif( PFLARE_DIR )
 
 # build test main exe
