@@ -221,13 +221,12 @@ int main( int argc, char **args ){
         PCPFLAREINVGetType(pc1,  &invType);
         PetscPrintf(PETSC_COMM_WORLD,"Built an approximate inverse using PCPFLAREINV type = %d, polynomial order = %d, sparsity order = %d\n", invType, pflarePolyOrder, pflareSparsityOrder);
         PetscPrintf(PETSC_COMM_WORLD,"  (for the record PFLAREINV_ARNOLDI = %d, PFLAREINV_NEUMANN = %d, PFLAREINV_JACOBI = %d, PFLAREINV_WJACOBI = %d)\n\n", PFLAREINV_ARNOLDI, PFLAREINV_NEUMANN, PFLAREINV_JACOBI, PFLAREINV_WJACOBI);
-        
-        KSPGetOperators( kspArray[1], &S  , &Sp);//Here we get the Schur preconditioning matrix Sp
-    
+            
         //Extract approximate inverse from Pflare
         PCPFLAREINVGetInverseMat( pc1, &Ap);
     }
     
+    KSPGetOperators( kspArray[1], &S  , &Sp);//Here we get the Schur preconditioning matrix Sp
     //Build the approximate schur complement
     getSchurComplement( Ap, G, D, C, &Sp );//Sparse Schur complement is built and stord in Sp
     //Give approx schur complement to the schur system
